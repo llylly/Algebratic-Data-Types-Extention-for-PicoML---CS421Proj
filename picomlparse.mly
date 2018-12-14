@@ -13,12 +13,13 @@
 /* Define the tokens of the language: */
 %token <int> INT
 %token <float> FLOAT
-%token <string> STRING IDENT
+%token <string> STRING IDENT TIDENT CONSTRUCT TEST DESTRUCT
 %token TRUE FALSE NEG PLUS MINUS TIMES DIV DPLUS DMINUS DTIMES DDIV MOD EXP CARAT
        LT GT LEQ GEQ EQUALS NEQ PIPE ARROW SEMI DSEMI DCOLON AT NIL
        LET REC AND IN IF THEN ELSE FUN MOD RAISE TRY WITH NOT LOGICALAND
        LOGICALOR LBRAC RBRAC LPAREN RPAREN COMMA UNDERSCORE UNIT
        HEAD TAIL PRINT FST SND EOF
+       TYPE OF
 
 /* Define the "goal" nonterminal of the grammar: */
 %start main
@@ -30,6 +31,21 @@ main:
     expression DSEMI      			   { (Anon ( $1)) }
   | LET IDENT EQUALS expression	DSEMI 	           { (Let ($2,$4)) }
   | LET REC IDENT IDENT EQUALS expression DSEMI    { (LetRec ($3, $4, $6)) }
+  | TYPE type_exp DSEMI              { (TypeStat ($2)) }
+
+type_exp:
+    IDENT EQUALS type_constructor AND type_exp { ($1, $3):: $5 }
+  | IDENT EQUALS type_constructor              { ($1, $3):: [] }
+
+type_constructor:
+    TIDENT OF type_comp PIPE type_constructor { ($1, $3):: $5 }
+  | TIDENT OF type_comp                       { ($1, $3):: [] } 
+  | TIDENT PIPE type_constructor               { ($1, []):: $3 }
+  | TIDENT                                    { ($1, []):: [] }
+
+type_comp:
+    IDENT                 { $1:: [] }
+  | IDENT TIMES type_comp { $1:: $3 }
 
 expression:
    op_exp				{ $1 }
@@ -234,6 +250,17 @@ atomic_expression:
   | list_expression		{ $1 }
   | paren_expression            { $1 }
   | monop atomic_expression		{ MonOpAppExp ($1,$2) }
+  | construct_expression { $1 }
+  | TEST LPAREN expression RPAREN { TestExp ($1, $3) }
+  | DESTRUCT LPAREN expression RPAREN { DestructExp ($1, $3) }
+
+construct_expression:
+    CONSTRUCT LPAREN construct_comps RPAREN { ConstructExp ($1, $3) }
+  | CONSTRUCT { ConstructExp ($1, []) }
+
+construct_comps:
+  expression { [$1] }
+  | expression COMMA construct_comps { $1::$3 }
 
 list_expression:
     LBRAC list_contents			{ $2 }

@@ -11,6 +11,7 @@ exception EndInput
    of the code, to save the trouble of re-typing them each time they are used *)
 let numeric = ['0' - '9']
 let lower_case = ['a' - 'z']
+let upper_case = ['A' - 'Z']
 let alpha = ['a' - 'z' 'A' - 'Z' ]
 let id_char = numeric | alpha | "'" | "_"
 let hexadec = numeric | ['a' - 'f']
@@ -75,6 +76,8 @@ rule token = parse
   | ","     { COMMA  }
   | "_"     { UNDERSCORE }
   | "print_string" { PRINT }
+  | "type"  { TYPE }
+  | "of"    { OF }
 
   | numeric+ as s { INT (int_of_string s) }
   | ("0x"(hexadec)+) as s { INT (int_of_string s) }
@@ -87,6 +90,11 @@ rule token = parse
 
   | (lower_case (id_char*)) as s     { IDENT s }
 
+  | (upper_case (id_char*)) as s     { TIDENT s }
+  | "#"((upper_case (id_char*)) as s) { CONSTRUCT s }
+  | "@"((upper_case (id_char*)) as s) { DESTRUCT s }
+  | "!"((upper_case (id_char*)) as s) { TEST s }
+
   | open_comment       { comment 1 lexbuf }
 
   | close_comment      { raise (Failure "unmatched closed comment") }
@@ -97,9 +105,9 @@ rule token = parse
 and comment count = parse
    open_comment        { comment (1 + count) lexbuf }
  | close_comment       { match count with 0 -> raise (Failure "Solution error")
-                         | 1 -> token lexbuf
-                         | n -> comment (n - 1) lexbuf
- }
+                        | 1 -> token lexbuf
+                        | n -> comment (n - 1) lexbuf
+                       }
  | eof             { raise (Failure "unmatched open comment") }
  | _                   { comment count lexbuf }
 

@@ -60,11 +60,17 @@ type exp =  (* Exceptions will be added in later MPs *)
    | RaiseExp of exp                            (* raise e *)
    | TryWithExp of (exp * int option * exp * (int option * exp) list)
 		                   (* try e with i -> e1 | j -> e1 | ... | k -> en *)
+   | ConstructExp of string * (exp list)
+   | DestructExp of string * exp
+   | TestExp of string * exp
+
+type typeDec = string * ((string * (string list)) list)
 
 type dec =
      Anon of exp
    | Let of string * exp                 (* let x = exp *)
    | LetRec of string * string * exp     (* let rec f x = exp *)
+   | TypeStat of typeDec list  (* type Typename = Cons1 of T1 * T2 | Cons2 of T3 * T4 and Typename2 = Cons3 of ... *)
 
 let rec string_of_exp = function
    VarExp s -> s
@@ -88,6 +94,10 @@ let rec string_of_exp = function
     "try " ^ (paren_string_of_exp e) ^  " with " ^
      (string_of_exc_match (intopt1,exp1)) ^
      (List.fold_left (fun s m -> (s^" | " ^ (string_of_exc_match m))) "" match_list) 
+  
+ | ConstructExp (s, elst) -> "@" ^ s ^ " (" ^ (List.fold_left (^) "" (List.map (string_of_exp) elst)) ^ ")"
+ | DestructExp (s, e) -> "@" ^ s ^ " (" ^ (string_of_exp e) ^ ")"
+ | TestExp (s, e) -> "!" ^ s ^ " (" ^ (string_of_exp e) ^ ")"
 
 and paren_string_of_exp e =
     match e with VarExp _ | ConstExp _ -> string_of_exp e
@@ -102,12 +112,34 @@ and string_of_exc_match (int_opt, e) =
     (match int_opt with None -> "_" | Some n -> string_of_int n) ^
     " -> " ^
     (string_of_exp e)
+
+let string_of_typeDec (dec: typeDec) = match dec with
+  (tname, conss) -> (let rec string_of_comps comps = (match comps with
+      (x :: []) -> x
+      | (x :: xs) -> x ^ " * " ^ (string_of_comps xs)
+      | [] -> ""
+    ) in 
+      let rec string_of_conss conss = (match conss with
+        ((consname, []):: []) -> consname
+        | ((consname, []):: ls) -> consname ^ " | " ^ (string_of_conss ls)
+        | ((consname, comps):: []) -> consname ^ " of " ^ (string_of_comps comps)
+        | ((consname, comps):: ls) -> consname ^ " of " ^ (string_of_comps comps) ^ " | " ^ (string_of_conss ls)
+        | [] -> ""
+      ) 
+      in "type " ^ (tname) ^ " = " ^ (string_of_conss conss)
+    )
+
+let rec string_of_typeDecList (declst: typeDec list) = match declst with
+  x:: [] -> string_of_typeDec x
+  | x:: xs -> (string_of_typeDec x) ^ " ;\n " ^ (string_of_typeDecList xs)
+  | [] -> ""
 							
 let string_of_dec = function
  | Anon e -> ("let _ = "^ (string_of_exp e))
  | Let (s, e) ->  ("let "^ s ^" = " ^ (string_of_exp e))
  | LetRec (fname,argname,fn) -> 
     ("let rec " ^ fname ^ " " ^ argname ^ " = " ^ (string_of_exp fn))
+ | TypeStat (lst) -> string_of_typeDecList lst
 
 let print_exp exp = print_string (string_of_exp exp) 
 let print_dec dec = print_string (string_of_dec dec)
@@ -209,6 +241,18 @@ let float_op_ty =
     polyTy_of_monoTy(mk_fun_ty float_ty (mk_fun_ty float_ty float_ty))
 let string_op_ty =
     polyTy_of_monoTy(mk_fun_ty string_ty (mk_fun_ty string_ty string_ty))
+  
+(* type extension *)
+let make_userType s = TyConst (s, [])
+let internal_ty = ["bool"; "int"; "float"; "string"; "unit"]
+let comp_ty_signature s = match s with
+  "bool" -> bool_ty
+  | "int" -> int_ty
+  | "float" -> float_ty
+  | "string" -> string_ty 
+  | "unit" -> unit_ty
+  | _ -> (make_userType s)
+
 
 (* fixed signatures *)
 let const_signature const = match const with
@@ -274,6 +318,7 @@ let string_of_env string_of_entry gamma =
 
 let string_of_type_env gamma = string_of_env string_of_polyTy gamma
 
+
 (*environment operations*)
 let rec lookup mapping x =
   match mapping with
@@ -281,6 +326,10 @@ let rec lookup mapping x =
    | (y,z)::ys -> if x = y then Some z else lookup ys x
 
 type type_env = polyTy env
+
+(* typeDec env *)
+type typeDec_env = typeDec env
+
 
 let make_env x y = ([(x,y)]:'a env)
 let lookup_env (gamma:'a env) x = lookup gamma x
@@ -291,6 +340,7 @@ let ins_env (gamma:'a env) x y = sum_env (make_env x y) gamma
 type judgment =
    ExpJudgment of type_env * exp * monoTy
  | DecJudgment of type_env * dec * type_env
+ | TypeJudgment of typeDec_env
 
 let string_of_judgment judgment =
   match judgment with ExpJudgment(gamma, exp, monoTy) ->
@@ -299,6 +349,8 @@ let string_of_judgment judgment =
   | DecJudgment (gamma, dec, delta) ->
         string_of_type_env gamma ^ " |= "^ string_of_dec dec ^
          " : " ^ string_of_type_env delta
+  | TypeJudgment (delta) ->
+        string_of_typeDecList (List.map (snd) delta)
 
 type proof = Proof of proof list * judgment
 
@@ -445,432 +497,3 @@ let rec unify eqlst : substitution option =
 ;;
 
 
-(*-----------------------------------------------*)
-
-(*constraint list*)
-type consList = (monoTy * monoTy) list
-
-
-(*applying a substitution to a proof*)
-let rec proof_lift_subst f = function
-    Proof(assum, ExpJudgment(gamma, exp, monoTy)) ->
-    Proof(List.map (proof_lift_subst f) assum,
-          ExpJudgment(env_lift_subst f gamma, exp, monoTy_lift_subst f monoTy))
- | Proof(assum, DecJudgment(gamma, dec, delta)) ->
-    Proof(List.map (proof_lift_subst f) assum,
-          DecJudgment(env_lift_subst f gamma, dec, env_lift_subst f delta))
-
-let rec proof_rename_tyvars f = function
-    Proof(assum, ExpJudgment(gamma, exp, monoTy)) ->
-    Proof(List.map (proof_rename_tyvars f) assum,
-          ExpJudgment(env_rename_tyvars f gamma, exp,
-                      monoTy_rename_tyvars f monoTy))
- | Proof(assum, DecJudgment(gamma, dec, delta)) ->
-    Proof(List.map (proof_rename_tyvars f) assum,
-          DecJudgment(env_rename_tyvars f gamma, dec,
-                      env_rename_tyvars f delta))
-
-let get_ty = function
-   None       -> raise(Failure "None")
- | Some(ty,p) -> ty
-
-let get_proof = function
-   None       -> raise(Failure "None")
- | Some(ty,p) -> p
-
-let infer_exp gather_exp (gamma:type_env) (exp:exp) = 
-  let ty = fresh() in
-  let result = 
-    match gather_exp gamma exp ty with
-       None         -> None
-     | Some(proof,sigma) -> match ty with
-          | TyVar n -> Some (subst_fun sigma n, proof_lift_subst sigma proof)
-          | _       -> None
-  in let _ = reset() in
-  result;;
-
-let infer_dec gather_dec (gamma:type_env) (dec:dec) =
-  let result = 
-    match gather_dec gamma dec with
-       None -> None
-     | Some(proof,sigma) -> Some (proof_lift_subst sigma proof)
-  in let _ = reset() in
-  result;;
-
-let string_of_constraints c =
-  let rec aux c =
-     match c with 
-     | [] -> ""
-     | [(s,t)] ->  (string_of_monoTy s^ " --> "^ string_of_monoTy t)
-     | (s,t)::c' -> (string_of_monoTy s^ " --> "^ string_of_monoTy t^
-		     "; "^ aux c')
-  in ("["^ aux c^ "]\n")
-
- 
-let string_of_substitution s =
-  let rec aux s =
-     match s with 
-     | [] -> ""
-     | [(i,t)] -> ((string_of_typeVar i)  ^ " |--> " ^ string_of_monoTy t)
-     | (i,t)::s' -> (((string_of_typeVar i)  ^ " |--> ")^
-                     string_of_monoTy t^ "; "^ aux s')
-  in ("["^ aux s^ "]\n")
-
-
-let niceInfer_exp gather_exp (gamma:type_env) exp = 
-  let ty = fresh()
-  in
-  let result = 
-    match gather_exp gamma exp ty with
-     None ->
-      (print_string("Failure: No type for expression: "^
-       string_of_exp exp^ "\n"^
-       "in the environment: "^
-       string_of_env string_of_polyTy gamma^ "\n");
-       raise (Failure ""))
-   | Some (p,s) ->
-   (string_of_proof p^
-	(*
-   "Constraints: "^
-   string_of_constraints c ^
-   "Unifying..."^
-   match unify c with
-     None -> ("Failure: No solution for these constraints!\n"^
-              raise (Failure ""))
-   | Some s ->
-	*)
-   ("Unifying substitution: "^
-    string_of_substitution s^
-    "Substituting...\n"^
-    let new_p = proof_lift_subst s p in
-    string_of_proof new_p)) in
-  let _ = reset() in
-  result;;
-
-let niceInfer_dec
-    (gather_dec:(type_env -> dec -> (proof * type_env * substitution) option))
-    (gamma:type_env) dec = 
-  let result = 
-    match gather_dec gamma dec with
-     None ->
-      (print_string("Failure: No type for declaraion: "^
-       string_of_dec dec^ "\n"^
-       "in the environment: "^
-       string_of_env string_of_polyTy gamma^ "\n");
-       raise (Failure ""))
-   | Some (p,d,s) ->
-   (string_of_proof p^
-   ("Unifying substitution: "^
-    string_of_substitution s^
-    "Substituting...\n"^
-    let new_p = proof_lift_subst s p in
-    string_of_proof new_p)) in
-  let _ = reset() in
-  result;;
-
-(* Collect all the TyVar indices in a proof *)
-
-let rec collectTypeVars ty lst =
-  match ty with
-    TyVar m -> m::lst
-  | TyConst(st, typelst) -> List.fold_left (fun xl x -> collectTypeVars x xl) lst typelst
-
-let rec collectFreeTypeVars bty ty lst =
-  match ty with
-    TyVar m -> if List.mem m bty then lst else m::lst
-  | TyConst(st, typelst) ->
-    List.fold_left (fun xl x -> collectFreeTypeVars bty x xl) lst typelst
-
-let collectPolyTyVars (bty,mty) lst = collectFreeTypeVars bty mty lst
-
-let collectEnvVars (gamma:type_env) lst =
-    List.fold_left (fun tys (_,pty)-> collectPolyTyVars pty tys) lst gamma
-
-let collectJdgVars jdg lst =
-    match jdg with ExpJudgment(gamma, exp, monoTy) ->
-        collectEnvVars gamma (collectTypeVars monoTy lst)
-    | DecJudgment(gamma, dec, delta) ->
-        collectEnvVars gamma (collectEnvVars delta lst)
-
-let rec collectProofVars prf lst =
-  match prf with Proof (assum, jdg)
-   -> collectAssumVars assum (collectJdgVars jdg lst)
-and collectAssumVars assum lst =
-  match assum with 
-    []     -> lst
-  | p::ps -> collectAssumVars ps (collectProofVars p lst)
-
-let canonicalize_proof prf_opt =
-    match prf_opt with None -> None
-    | Some(ty, prf) ->
-  let (varlst,_) =
-    List.fold_right (fun x (xl,idx) -> ((x,idx)::xl), idx+1) 
-      (delete_duplicates (collectProofVars prf (collectTypeVars ty []))) 
-      ([],1)
-  in Some(monoTy_rename_tyvars varlst ty, proof_rename_tyvars varlst prf)
-
-let canon = canonicalize_proof
-
-let canon_dec prf_opt =
-    match prf_opt with None -> None
-    | Some prf ->
-  let (varlst,_) =
-    List.fold_right (fun x (xl,idx) -> ((x, idx)::xl), idx+1) 
-      (delete_duplicates (collectProofVars prf []))
-      ([],1)
-  in Some(proof_rename_tyvars varlst prf)
-
-(* ML3's inferencer *)
-
-let rec gather_exp_ty_substitution gamma exp tau =
-    let judgment = ExpJudgment(gamma, exp, tau) in
-(*
-    let _ = print_string ("Trying to type "^ string_of_judgment judgment^"\n") in
-*)
-    let result =
-    match exp
-    with ConstExp c ->
-         let tau' = const_signature c in
-         (match unify [(tau, freshInstance tau')]
-          with None       -> None
-             | Some sigma -> Some(Proof([],judgment), sigma))
-    | VarExp x -> 
-      (match lookup_env gamma x with None -> None
-       | Some gamma_x ->
-         (match unify [(tau, freshInstance gamma_x)]
-          with None       -> None
-             | Some sigma -> Some(Proof([],judgment), sigma)))
-    | BinOpAppExp (binop, e1,e2) ->
-      let tau' = binop_signature binop in
-      let tau1 = fresh() in
-      let tau2 = fresh() in
-      (match gather_exp_ty_substitution gamma e1 tau1
-       with None -> None
-       | Some(pf1, sigma1) ->
-         (match gather_exp_ty_substitution (env_lift_subst sigma1 gamma) e2 tau2
-          with None -> None
-          | Some (pf2, sigma2) ->
-            let sigma21 = subst_compose sigma2 sigma1 in
-            (match unify[(monoTy_lift_subst sigma21
-                          (mk_fun_ty tau1 (mk_fun_ty tau2 tau)),
-                         freshInstance tau')]
-             with None -> None
-             | Some sigma3 -> 
-               Some(Proof([pf1;pf2], judgment),subst_compose sigma3 sigma21))))
-    | MonOpAppExp (monop, e1) ->
-      let tau' = monop_signature monop in
-      let tau1 = fresh() in
-      (match gather_exp_ty_substitution gamma e1 tau1
-       with None -> None
-       | Some(pf, sigma) ->
-         (match unify[(monoTy_lift_subst sigma (mk_fun_ty tau1 tau),
-                       freshInstance tau')]
-          with None -> None
-          | Some subst ->
-            Some(Proof([pf], judgment),
-                 subst_compose subst sigma)))
-    | IfExp(e1,e2,e3) ->
-      (match gather_exp_ty_substitution gamma e1 bool_ty
-       with None -> None
-       | Some(pf1, sigma1) ->
-         (match gather_exp_ty_substitution
-                (env_lift_subst sigma1 gamma) e2 (monoTy_lift_subst sigma1 tau)
-          with None -> None
-          | Some (pf2, sigma2) ->
-            let sigma21 = subst_compose sigma2 sigma1 in
-            (match gather_exp_ty_substitution
-                   (env_lift_subst sigma21 gamma) e3
-                   (monoTy_lift_subst sigma21 tau)
-             with  None -> None
-             | Some(pf3, sigma3) ->
-               Some(Proof([pf1;pf2;pf3], judgment), subst_compose sigma3 sigma21))))
-    | FunExp(x,e) ->
-      let tau1 = fresh() in
-      let tau2 = fresh() in
-      (match gather_exp_ty_substitution
-             (ins_env gamma x (polyTy_of_monoTy tau1)) e tau2
-       with None -> None
-       | Some (pf, sigma) ->
-         (match unify [(monoTy_lift_subst sigma tau,
-                        monoTy_lift_subst sigma (mk_fun_ty tau1 tau2))]
-          with None -> None
-          | Some sigma1 ->
-            Some(Proof([pf],judgment), subst_compose sigma1 sigma)))
-    | AppExp(e1,e2) ->
-      let tau1 = fresh() in
-      (match gather_exp_ty_substitution gamma e1 (mk_fun_ty tau1 tau)
-       with None -> None
-       | Some(pf1, sigma1) ->
-         (match gather_exp_ty_substitution (env_lift_subst sigma1 gamma) e2
-                                           (monoTy_lift_subst sigma1 tau1)
-          with None -> None
-          | Some (pf2, sigma2) ->
-            Some(Proof([pf1;pf2], judgment), subst_compose sigma2 sigma1)))
-    | RaiseExp e ->
-      (match gather_exp_ty_substitution gamma e int_ty
-       with None -> None
-       | Some(pf, sigma) -> Some(Proof([pf],judgment), sigma))
-    | LetInExp(x,e1,e2)  -> 
-       let tau1 = fresh() in
-       (match gather_exp_ty_substitution gamma e1 tau1
-	with None -> None
-	   | Some(pf1, sigma1) -> 
-	      let delta_env = make_env x (gen (env_lift_subst sigma1 gamma) 
-					      (monoTy_lift_subst sigma1 tau1)) in
-	      (match gather_exp_ty_substitution 
-		       (sum_env delta_env (env_lift_subst sigma1 gamma)) e2
-                         (monoTy_lift_subst sigma1 tau)
-	       with None -> None
-		  | Some (pf2,sigma2) ->
-		     let sigma21 = subst_compose sigma2 sigma1 in
-		     Some(Proof([pf1;pf2], judgment), sigma21)))
-    | LetRecInExp(f,x,e1,e2) ->
-       let tau1  = fresh() in
-       let tau2 = fresh() in
-       let tau1_to_tau2 = mk_fun_ty tau1 tau2 in
-       (match gather_exp_ty_substitution
-		(ins_env (ins_env gamma f (polyTy_of_monoTy tau1_to_tau2))
-			  x (polyTy_of_monoTy tau1))
-		e1 tau2
-	with None -> None
-	   | Some(pf1, sigma1) -> 
-              let sigma1_gamma = env_lift_subst sigma1 gamma in
-	      let sigma1_tau1_to_tau2 = monoTy_lift_subst sigma1 tau1_to_tau2 in
-	      (match gather_exp_ty_substitution
-                     (ins_env sigma1_gamma f (gen sigma1_gamma sigma1_tau1_to_tau2))
-		     e2 (monoTy_lift_subst sigma1 tau)
-	       with None -> None
-		  | Some(pf2,sigma2) ->
-		     let sigma21 = subst_compose sigma2 sigma1 in
-		     Some(Proof([pf1;pf2], judgment),sigma21)))
-    | TryWithExp (e,intopt1,e1, match_list) ->
-      (match (gather_exp_ty_substitution gamma e tau)
-       with None -> None
-       | Some (pf, sigma) ->
-         (match
-           List.fold_left
-           (fun part_result -> fun (intopti, ei) ->
-            (match part_result with None -> None
-             | Some (rev_pflist, comp_sigmas) ->
-               (match gather_exp_ty_substitution
-                      (env_lift_subst comp_sigmas gamma) ei
-                      (monoTy_lift_subst comp_sigmas tau)
-                with None -> None
-                | Some (pfi, sigmai) ->
-                  Some (pfi :: rev_pflist, subst_compose sigmai comp_sigmas))))
-           (Some([pf], sigma))
-           ((intopt1,e1):: match_list)
-           with None -> None
-           | Some (rev_pflist, comp_subst) ->
-             Some(Proof(List.rev rev_pflist, judgment), comp_subst)))
-
-in (
-(*
-    (match result
-     with None ->
-      print_string ("Failed to type "^string_of_judgment judgment^"\n")
-     | Some (_, subst) -> print_string ("Succeeded in typing "^
-                               string_of_judgment judgment^"\n"^
-"  with substitution "^ string_of_substitution subst ^"\n"));
-*)
-    result)
-
-let rec gather_dec_ty_substitution gamma dec =
-    match dec with 
-    | Anon e ->
-      let tau = fresh() in
-      (match gather_exp_ty_substitution gamma e tau
-	with None -> None
-	   | Some(pf, sigma) ->
-             Some(Proof([pf],DecJudgment (gamma, dec, [])), sigma))
-    | Let(x,e) -> 
-       let tau = fresh() in
-       (match gather_exp_ty_substitution gamma e tau
-	with None -> None
-	   | Some(pf, sigma) -> 
-	      let delta_env = make_env x (gen (env_lift_subst sigma gamma) 
-					      (monoTy_lift_subst sigma tau)) in
-             Some(Proof([pf],DecJudgment (gamma, dec, delta_env)),sigma))
-    | LetRec(f,x,e) ->
-       let tau1  = fresh() in
-       let tau2 = fresh() in
-       let tau1_to_tau2 = mk_fun_ty tau1 tau2 in
-       (match gather_exp_ty_substitution
-		(ins_env (ins_env gamma f (polyTy_of_monoTy tau1_to_tau2))
-			  x (polyTy_of_monoTy tau1))
-		e tau2
-	with None -> None
-	   | Some(pf, sigma) -> 
-              let sigma_gamma = env_lift_subst sigma gamma in
-	      let sigma_tau1_to_tau2 = monoTy_lift_subst sigma tau1_to_tau2 in
-              let delta_env =
-                 (ins_env sigma_gamma f (gen sigma_gamma sigma_tau1_to_tau2))
-              in 
-	      Some(Proof([pf],DecJudgment (gamma, dec, delta_env)),sigma))
-
-
-(*********************************************)
-(*                  values                   *)
-
-type memory = (string * value) list
-and value =
-    UnitVal                                       | BoolVal of bool
-  | IntVal of int                                 | FloatVal of float
-  | StringVal of string                           | PairVal of value * value
-  | Closure of string * exp * memory              | ListVal of value list
-  | RecVarVal of string * string * exp * memory   | Exn of int
-
-let make_mem x y = ([(x,y)]:memory)
-let rec lookup_mem (gamma:memory) x =
-  match gamma with
-     []        -> raise (Failure ("identifier "^x^" unbound"))
-   | (y,z)::ys -> if x = y then z else lookup_mem ys x
-let sum_mem (delta:memory) (gamma:memory) = ((delta@gamma):memory)
-let ins_mem (gamma:memory) x y = sum_mem (make_mem x y) gamma
-
-(*value output*)
-let rec print_value v =
-   match v with
-    UnitVal           -> print_string "()"
-  | IntVal n          -> if n < 0 then (print_string "~"; print_int (abs n)) else print_int n 
-  | FloatVal r        -> print_float r
-  | BoolVal true      -> print_string "true"
-  | BoolVal false     -> print_string "false"
-  | StringVal s       -> print_string ("\"" ^  (String.escaped s) ^ "\"")
-  | PairVal (v1,v2)   -> print_string "(";
-                         print_value v1; print_string ", ";
-                         print_value v2;
-                         print_string ")";
-  | ListVal l         -> print_string "[";
-                         (let rec pl = function
-                              []     -> print_string "]"
-                            | v::vl  -> print_value v;
-                                        if vl <> []
-                                        then
-                                           print_string "; ";
-                                        pl vl
-                              in pl l)
-  | Closure (x, e, m) -> print_string ("<some closure>")
-  | RecVarVal (f, x, e, m)  -> print_string ("<some recvar>")
-  | Exn n -> (print_string "(Exn "; print_int n; print_string ")")
-
-let compact_memory m =
-  let rec comp m rev_comp_m =
-      (match m with [] -> List.rev rev_comp_m
-        | (x,y) :: m' ->
-           if List.exists (fun (x',_) -> x = x') rev_comp_m
-              then comp m' rev_comp_m
-           else comp m' ((x,y)::rev_comp_m))
-  in comp m []
-
-(*memory output*)
-let print_memory m =
-    let cm = compact_memory m in
-    let rec print_m m = 
-    (match m with
-        []           -> ()
-      | (x, v) :: m' -> print_m m';
-                        print_string ("val "^x ^ " = ");
-                        print_value v;
-                        print_string (";\n") ) in
-    print_m cm

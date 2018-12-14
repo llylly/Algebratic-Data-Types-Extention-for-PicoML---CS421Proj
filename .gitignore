@@ -3,3 +3,5 @@
 *.pdf
 *.mli
 *.output
+picomlparse.ml
+picomllex.ml

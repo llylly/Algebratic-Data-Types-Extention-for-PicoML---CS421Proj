@@ -24,6 +24,8 @@ MODULE_RUBRIC=rubric
 
 MODULE_LEX=picomllex
 MODULE_YACC=picomlparse
+MODULE_TYPEINFERENCER=type_inferencer
+MODULE_VALUES=values
 
 OBJLANG=picoml
 INTERACTIVE_EXE=$(OBJLANG)Interp
@@ -41,7 +43,7 @@ $(MPVERSION).pdf: ../$(MPVERSION).tex
 DISTFILES_SOURCE=pre-rubric.c tests Makefile $(MODULE_COMMON).ml $(INTERACTIVE_EXE).ml $(OBJLANG)parse.mly $(OBJLANG)lex.mll
 DISTFILES_OBJECT=$(MODULE_COMMON).cmo $(MODULE_COMMON).cmi $(OBJLANG)parse.cmo $(OBJLANG)parse.cmi $(OBJLANG)lex.cmo $(OBJLANG)lex.cmi $(MODULE_SOLUTION).cmo $(MODULE_SOLUTION).cmi
 
-IMPLEMENTATIONS= $(MODULE_COMMON).cmo $(OBJLANG)parse.cmo $(OBJLANG)lex.cmo $(MPVERSION).cmo $(MODULE_SOLUTION).cmo 
+IMPLEMENTATIONS= $(MODULE_COMMON).cmo $(MODULE_TYPEINFERENCER).cmo $(MODULE_VALUES).cmo $(OBJLANG)parse.cmo $(OBJLANG)lex.cmo $(MPVERSION).cmo $(MODULE_SOLUTION).cmo 
 
 DISTFILES_OTHER=README $(MPVERSION)-skeleton.ml $(MPVERSION).pdf .ocamlinit
 DISTFILES=$(DISTFILES_SOURCE) $(DISTFILES_OBJECT) $(DISTFILES_OTHER)
@@ -50,7 +52,10 @@ OBJECTS=$(IMPLEMENTATIONS) $(MODULE_RUBRIC).cmo
 
 STUDENT_CLEAN=$(MODULE_RUBRIC).cm? util.o $(GRADER_NAME) \
         $(INTERACTIVE_EXE) $(INTERACTIVE_EXE)Sol $(INTERACTIVE_EXE)*.cm? $(INTERACTIVE_EXE)2* \
-		$(MODULE_LEX).cm? $(MODULE_YACC).cm?
+		$(MODULE_LEX).cm? $(MODULE_YACC).cm? \
+		$(MODULE_COMMON).cm? $(MPVERSION).cm? \
+		$(MODULE_SOLUTION).cm? \
+		$(MODULE_TYPEINFERENCER).cm? $(MODULE_VALUES).cm?
 
 $(GRADER_NAME): $(LIBRARY_GRADER) $(OBJECTS)
 	$(OCAMLC) -o $(GRADER_NAME) $(LIBRARY_GRADER) $(OBJECTS) 
@@ -71,6 +76,15 @@ $(LIBRARY_GRADER):
 $(MPVERSION).cmo: $(MPVERSION).ml
 	$(OCAMLC) -c -o $(MPVERSION).cmo $(MPVERSION).ml
 
+$(MODULE_COMMON).cmo: $(MODULE_COMMON).ml
+	$(OCAMLC) -c -o $(MODULE_COMMON).cmo $(MODULE_COMMON).ml
+
+$(MODULE_TYPEINFERENCER).cmo: $(MODULE_TYPEINFERENCER).ml
+	$(OCAMLC) -c -o $(MODULE_TYPEINFERENCER).cmo $(MODULE_TYPEINFERENCER).ml
+
+$(MODULE_VALUES).cmo: $(MODULE_VALUES).ml
+	$(OCAMLC) -c -o $(MODULE_VALUES).cmo $(MODULE_VALUES).ml
+
 $(MODULE_LEX).cmo: $(MODULE_LEX).mll
 	$(OCAMLLEX) $(MODULE_LEX).mll
 	$(OCAMLC) -c $(MODULE_LEX).ml
@@ -85,16 +99,16 @@ $(MODULE_YACC).cmo: $(MODULE_YACC).mly
 # exist.
 ########################################################################
 ifeq "$(wildcard $(MODULE_SOLUTION).ml)" "$(MODULE_SOLUTION).ml"
-$(MODULE_COMMON).cmo: $(MODULE_COMMON).ml
-	$(OCAMLC) -c $(MODULE_COMMON).ml 
-$(OBJLANG)parse.cmo: $(OBJLANG)parse.mly
-	$(OCAMLYACC) $(OBJLANG)parse.mly
-	$(OCAMLC) -c $(OBJLANG)parse.mli
-	$(OCAMLC) -c $(OBJLANG)parse.ml
+# $(MODULE_COMMON).cmo: $(MODULE_COMMON).ml
+# 	$(OCAMLC) -c $(MODULE_COMMON).ml 
+# $(OBJLANG)parse.cmo: $(OBJLANG)parse.mly
+# 	$(OCAMLYACC) $(OBJLANG)parse.mly
+# 	$(OCAMLC) -c $(OBJLANG)parse.mli
+# 	$(OCAMLC) -c $(OBJLANG)parse.ml
 
-$(OBJLANG)lex.cmo: $(OBJLANG)lex.mll
-	$(OCAMLLEX) $(OBJLANG)lex.mll
-	$(OCAMLC) -c $(OBJLANG)lex.ml
+# $(OBJLANG)lex.cmo: $(OBJLANG)lex.mll
+# 	$(OCAMLLEX) $(OBJLANG)lex.mll
+# 	$(OCAMLC) -c $(OBJLANG)lex.ml
 
 $(MODULE_SOLUTION).cmo: $(MODULE_SOLUTION).ml
 	$(OCAMLC) -c $(MODULE_SOLUTION).ml
