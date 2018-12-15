@@ -1,0 +1,423 @@
+%++++++++++++++++++++++++++++++++++++++++
+% Don't modify this section unless you know what you're doing!
+\documentclass[a4paper,12pt]{article}
+\usepackage{tabularx} % extra features for tabular environment
+\usepackage{amsmath}  % improve math presentation
+\usepackage{graphicx} % takes care of graphic including machinery
+\usepackage[margin=1 in,a4paper]{geometry} % decreases margins
+\usepackage{cite} % takes care of citations
+\usepackage[final]{hyperref} % adds hyper links inside the generated pdf file
+\hypersetup{
+	colorlinks=true,       % false: boxed links; true: colored links
+	linkcolor=blue,        % color of internal links
+	citecolor=blue,        % color of links to bibliography
+	filecolor=magenta,     % color of file links
+	urlcolor=blue         
+}
+%++++++++++++++++++++++++++++++++++++++++
+\usepackage{listings}
+\usepackage{color}
+
+\lstset{ 
+	backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}; should come as last argument
+	basicstyle=\footnotesize\tt,        % the size of the fonts that are used for the code
+	breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+	breaklines=true,                 % sets automatic line breaking
+	captionpos=b,                    % sets the caption-position to bottom
+%	commentstyle=\color{mygreen},    % comment style
+	deletekeywords={Double},            % if you want to delete keywords from the given language
+	escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+	extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+%	frame=single,	                   % adds a frame around the code
+	keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+	keywordstyle=\color{blue},       % keyword style
+	language=haskell,                 % the language of the code
+	morekeywords={*,...},            % if you want to add more keywords to the set
+	numbers=none,                    % where to put the line-numbers; possible values are (none, left, right)
+	numbersep=5pt,                   % how far the line-numbers are from the code
+%	numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+	rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+	showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+	showstringspaces=false,          % underline spaces within strings only
+	showtabs=false,                  % show tabs within strings adding particular underscores
+	stepnumber=2,                    % the step between two line-numbers. If it's 1, each line will be numbered
+%	stringstyle=\color{grey},     % string literal style
+	tabsize=2,	                   % sets default tabsize to 2 spaces
+%	title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+}
+
+\begin{document}
+
+\title{CS421 Programming Languages and Compilers\\ Unit Project: Algebraic Data Types for PicoML\\ Report}
+\author{Linyi Li \and Hanyun Xu}
+\date{December 14, 2018}
+\maketitle
+
+\section{Overview}
+	Algebraic data type is an important concept in programming languages and type systems. It enables composition of new data types from components. In this unit project, we extend current PicoML interpreter to enable the definition of algebraic data types and their objects.
+	
+	Our project includes the following features:
+	\begin{itemize}
+		\item Definition of algebraic data types from unconstrained type components;
+		
+		\item Self or mutual recursive algebraic data type support.
+				
+		\item Construction and decomposition of algebraic data type variables using auxiliary functions;
+		
+		\item Test functions of algebraic data type variables.
+		
+		\item Complete static type checking through construction, decomposition and test functions.
+		
+		\item Extended interactive console for the interpreter, which displays history statements and history evaluation results.
+		
+		\item Test cases and automated tester.
+	\end{itemize}
+
+	The project is based on PicoML evaluator code framework (MP5), and the implementation is purely in OCaml.
+
+\section{Syntax \& Semantics}
+	
+	\texttt{typeName} := \texttt{[a-z]([0-9a-zA-Z'\_]*)}\\
+	\texttt{constructName} := \texttt{[A-Z]([0-9a-zA-Z'\_]*)}
+	
+	The \texttt{typeName} is used for algebraic type name identifier. The \texttt{constructName} is used for construct name identifier. They are both unique in the context. New definition of \texttt{typeName} will overwrite the existing one. Duplicate usage of \texttt{constructName} is banned when parsing.
+
+	\subsection{Algebraic Data Type Definition}
+		{
+			\begin{tabular}{l}
+				\textit{typeStatement} := \textbf{type} \textit{typeDefinition} \textbf{;;} \\
+			\end{tabular}\\
+			\begin{tabular}{ll}
+				\textit{typeDefinition} := & \texttt{typeName} \textbf{=} \textit{constructs}\\
+				& $\vert$ \texttt{typeName} \textbf{=} \textit{constructs} \textbf{and} \textit{typeDefinition} \\
+			\end{tabular}\\
+			\begin{tabular}{ll}
+				\textit{constructs} := & \texttt{constructName}\\
+				& $\vert$ \texttt{constructName} \textbf{of} \textit{typeComponents}\\
+				& $\vert$ \texttt{constructName} \textbf{|} \textit{constructs}\\
+				& $\vert$ \texttt{constructName} \textbf{of} \textit{typeComponents} $\mathbf{|}$ \textit{constructs}
+			\end{tabular}\\
+			\begin{tabular}{ll}
+			\textit{typeComponents} := & \textit{typeComponent}\\
+			& $\vert$ \textit{typeComponent} \textbf{*} \textit{typeComponents}
+			\end{tabular}\\
+			\begin{tabular}{ll}
+			\textit{typeComponent} := & \texttt{typeName}\\
+			& $\vert$ \textbf{(} \textit{typeComponent} \textbf{)}\\
+			& $\vert$ \textit{typeComponent} \textbf{list} \\
+			& $\vert$ \textbf{(} \textit{typeComponent} \textbf{*} \textit{typeComponent} \textbf{)} \\
+			& $\vert$ \textit{typeComponent} \textbf{->} \textit{typeComponent}
+			\end{tabular}\\
+		}
+	
+		The definition of algebraic data type in our extension for PicoML is basically the same as that in OCaml. The definition is a statement of PicoML, just like \texttt{let} statement and expression statement. The following are examples of algebraic data type definition:\\
+		\begin{lstlisting}
+type tree = Empty | Leaf of int | Node of tree * tree;;
+type node = EN | N of int * tree' and tree' = EM | M of node * tree';;
+type linkList = Null | Cons of int * linkList;;
+type dfn = Doub of (int -> int) * (int -> int);;
+		\end{lstlisting}
+		The above type definitions are all legal in our PicoML extension. The first one defines a binary tree. The second one defines a binary tree in mutual recursive way. The third one defines a link list. The last one is a composition of two integer to integer functions. It shows our support of complex type components.
+		
+		The definition of algebraic data type in our extension could support complex type components such as list component, pair component and function component. However, it could not support parametric data type.
+
+	\subsection{Constructor}
+		The constructor function has the following syntax:\\
+		\begin{tabular}{ll}
+			\textit{Constructor} & := \texttt{constructName} \\
+			& $\vert$ \texttt{constructName} \texttt{(} \textit{comps} \texttt{)}
+		\end{tabular}\\
+		\begin{tabular}{ll}
+			\textit{comps} & := \textit{exp} \\
+			& $\vert$ \textit{exp} \textbf{,} \textit{comps}
+		\end{tabular}
+	
+		The constructor function builds data type instance directly from its components. If the constructor has no component, directly call its name returns the type instance. If the constructor has component(s), listing its component(s) by defined order in the parenthesis and separated by comma. Each component should be an expression. The constructor function itself, along with its component(s), is parsed as an expression.
+		
+		The following codes show legal constructor calls:
+		\begin{lstlisting}
+Empty;;
+Node (Node (Leaf (5), Empty), Node (Leaf (3), Node (Leaf (1), Leaf (2))));;
+N (5, M (EN, M (EN, EM)));;
+Cons (1, Cons (2, Cons (3, Cons (4, Null))));;
+Doub ((fun x -> x * x), (fun x -> x * x * x));;
+		\end{lstlisting}
+	
+		The typing of constructor should consider of its component(s). The rule is as below:
+		\begin{equation*}
+			\frac{
+				\Gamma \vdash e_1: T_{\mathrm{Cons}_1} | \sigma_1 \quad \sigma_1(\Gamma) \vdash e_2: T_{\mathrm{Cons}_2} | \sigma_2 \quad  \dots \quad \sigma_{n-1} \circ \dots \circ \sigma_1(\Gamma) \vdash e_n: T_{\mathrm{Cons}_n} | \sigma_n
+			}{  
+				\Gamma \vdash \mathrm{Cons\ } (e_1, e_2, \dots, e_n): \tau \vert \mathit{unify}\left\{ (\sigma_n \circ \dots \circ \sigma_1 (\tau), \sigma_n \circ \dots \circ \sigma_1 (\mathrm{T})) \right\} \circ \sigma_n \circ \dots \circ \sigma_1
+			}
+		\end{equation*}
+		In the rule, $T$ stands for the data type to which constructor "Cons" belongs. $T$ could be directly obtained from "Cons" definition. $T_{\mathrm{Cons}_i}$ is the type of $i_{\mathit{th}}$ component of the constructor "Cons". It is explicitly defined in constructor definition.
+		
+		The evaluation rule is straightforward as below:
+		\begin{equation*}
+			\frac{
+				(e_1,m) \Downarrow v_1 \quad (e_2, m) \Downarrow v_2 \quad \dots \quad (e_n,m) \Downarrow v_n
+			}{
+				(\mathrm{Cons\ }(e_1, e_2, \dots, e_n), m) \Downarrow \mathit{Cons} (v_1, v_2, \dots, e_n)
+			}
+		\end{equation*}
+			
+	\subsection{Tester}
+		Tester is a function which tells whether the data type expression is built from certain constructor. The syntax is:\\
+		\textit{Tester} := \textbf{!}\texttt{constructName} \textbf{(} \textit{exp} \textbf{)}
+		
+		It is also a type of expression. Some legal tester call example are:
+		\begin{lstlisting}
+!Empty (a);;
+!Cons (b);;
+!Doub (c);;
+		\end{lstlisting}
+		where \texttt{a}, \texttt{b}, \texttt{c} should be defined in the memory.
+		
+		The typing of tester follows this rule:
+		\begin{equation*}
+			\frac{
+				\Gamma \vdash e: T | \sigma
+			}{
+				\Gamma \vdash \mathtt{!}\mathrm{Cons\ } (e): \tau | \mathit{unify}\left\{(\sigma(\tau), \texttt{bool})\right\} \circ \sigma
+			}
+		\end{equation*}
+		
+		The evaluation rule is also straightforward as below:
+		\begin{equation*}
+			\frac{
+				(e, m) \Downarrow v
+			}{
+				(\mathtt{!}\mathrm{Cons\ }(e), m) \Downarrow \mathtt{if\ } v=\mathit{Cons\ } (\dots) \ \mathtt{then\ } \mathtt{true\ } \mathtt{else\ } \mathtt{false}
+			}
+		\end{equation*}
+	
+	\subsection{Destructor}
+		Destructor is a function which directly break the data instance into its components. The syntax is very similar to constructor:\\
+		\textit{Destructor} := $\sim$\texttt{constructName} \textbf{(} \textit{exp} \textbf{)}
+		
+		It is also a type of expression. Some legal tester call example are:
+		\begin{lstlisting}
+~Empty (a);;
+~Cons (b);;
+~Doub (c);;
+		\end{lstlisting}
+		where \texttt{a}, \texttt{b}, \texttt{c} should be expression constructed from corresponding constructors.
+		
+		After the breaking, the resulting type depends on number of constructor components. If no component, the type is \texttt{unit ()}. If only one component, the type is exactly the component type. If more than one components, the type is a pair where the first element type is the first component type, and the second element type depends on the subsequence component sequence recursively. Therefore, the function output could be \texttt{()}, single component, or components structured using \texttt{pair}.
+		
+		The type rules are
+		\begin{equation*}
+			\frac{
+				\Gamma \vdash e: T |\sigma
+			}{
+				\Gamma \vdash \sim\mathrm{Cons\ } (e): \tau | \mathit{unify}\left\{ (\sigma(\tau), \mathtt{unit}) \right\} \circ \sigma
+			}(Cons ())
+		\end{equation*}
+		\begin{equation*}
+			\frac{
+				\Gamma \vdash e: T |\sigma
+			}{
+				\Gamma \vdash \sim\mathrm{Cons\ } (e): \tau | \mathit{unify}\left\{ (\sigma(\tau), \sigma(T_1)) \right\} \circ \sigma
+			}(Cons (T_1))
+		\end{equation*}
+		\begin{equation*}
+		\frac{
+			\Gamma \vdash e: T |\sigma
+		}{
+			\Gamma \vdash \sim\mathrm{Cons\ } (e): \tau | \mathit{unify}\left\{ (\sigma(\tau), \sigma((T_1, T_2)) \right\} \circ \sigma
+		}(Cons (T_1, T_2))
+		\end{equation*}
+		\begin{equation*}
+		\frac{
+			\Gamma \vdash e: T |\sigma
+		}{
+			\Gamma \vdash \sim\mathrm{Cons\ } (e): \tau | \mathit{unify}\left\{ (\sigma(\tau), \sigma((T_1, (T_2, (\dots, (T_{n-1}, T_n))))) \right\} \circ \sigma
+		}(Cons (T_1, T_2, \dots, T_n))
+		\end{equation*}
+		
+		The evaluation rules are direct decompositions:
+		\begin{equation*}
+			\frac{
+				(e, m) \Downarrow v
+			}{
+				(\sim\mathrm{Cons\ } (e), m) \Downarrow \mathrm{unit\ ()}
+			}(v = Cons ())
+		\end{equation*}
+		\begin{equation*}
+			\frac{
+				(e, m) \Downarrow v
+			}{
+				(\sim\mathrm{Cons\ } (e), m) \Downarrow v_1
+			}(v = Cons (v_1))
+		\end{equation*}
+		\begin{equation*}
+			\frac{
+				(e, m) \Downarrow v
+			}{
+				(\sim\mathrm{Cons\ } (e), m) \Downarrow (v_1, v_2)
+			}(v = Cons (v_1, v_2))
+		\end{equation*}
+		\begin{equation*}
+			\frac{
+				(e, m) \Downarrow v
+			}{
+				(\sim\mathrm{Cons\ } (e), m) \Downarrow (v_1, (v_2, (\dots, (v_{n-1}, v_n))))
+			}(v = Cons (v_1, v_2, \dots, v_n))
+		\end{equation*}
+
+\section{Implementation}
+	\subsection{Directory Structure}
+		In the package for ML, because assignment is just fill in one specific function, only the required module is detached. All other functionalities are in \texttt{common.ml}. To make development and testing easier, we decomposed \texttt{common.ml}. The type inference module is moved to \texttt{type\_inference.ml}. The definition of values is moved to \texttt{values.ml}.
+		
+		For our extension, there is no standard criteria or existing solution. Therefore, we delete \texttt{solution.cm*} related files and \texttt{*Sol} executable to avoid false-positive in testing module. We also rewrite the testing module, and new test cases are now in \texttt{proj\_tests} file rather than previous \texttt{tests} file.
+	
+	\subsection{Lexing \& Parsing}
+		In \texttt{picomllex.ml}, we add regular expression matching for constructor names, tester names and destructor names. The constructor names should always start with upper case characters. The tester names concatenate \texttt{!} and constructor names. The destructor names concatenate $\sim$ and constructor names. Some additional keywords for type declaration are also added, such as \texttt{list}, \texttt{type}, \texttt{of}.
+		
+		In \texttt{picomlparse.ml}, several deduction rules are added for type declaration and new function parsing. Type declaration is treated as another type of statement. And the three new function types are independently treated as new types of expression respectively rather than function definition.
+		
+	\subsection{Type Checking}
+		On statement level, we should do type checking for type declaration.
+		
+		A legal type declaration is checked against the following three conditions:
+		\begin{itemize}
+			\item Every type name should be unique among existing definitions and this statement.
+			\item Every constructor name should be unique among existing constructor names and this statement.
+			\item Every component in every constructor should be an existing type name in previous type definitions and this statement.
+		\end{itemize}
+	
+		To record the definition of types, we follow \texttt{type\_env} definition, and use \texttt{typeDec\_env} to store all type definitions in the memory. Thus, in \texttt{gather\_dec\_ty\_substition} we could effectively check against these three conditions. Once they are all satisfied, we could match the statement with constructor \texttt{TypeStat} and refresh the type definition environment.
+		
+		For type checking of the three functions, because we treat them as new expression types rather than functions, in \texttt{gather\_exp\_ty\_substitution}, we match each type of auxiliary functions individually and implement the above type inference rule respectively.
+	
+	\subsection{Evaluating}
+		On statement level, for type declaration, no value returned, the evaluation just updates type definitions and goes directly to next statement.
+		
+		On expression level, we firstly define a new \texttt{value} constructor: \texttt{CustomVal of string * (value list)}. The first component string stores the constructor name. The second component is the list of all component values of this constructor. Thus, \texttt{value} could express data type instance values. Secondly, we could do concrete evaluations. 
+		
+		For constructor function, just evaluate each component and combine them in a list, than use \texttt{CustomVal} constructor to build the corresponding value. For tester function, checking whether the first string component of \texttt{CustomVal} constructed value matches the constructor name in the tester function, and wrap the boolean value using \texttt{BoolVal} constructor. For destructor function, we firstly check whether the component name in destructor function matches that of the value. If not match, throw exception, otherwise wrap the component values, which is organized as list, to make pair recursively if the component number is more than 1. Or just return \texttt{unit ()} or the component value itself if there is no or just one component.
+	
+	\subsection{Miscellaneous}
+		Besides main implementation, we also update many auxiliary functions for better debugging and higher code coherence. For example, \texttt{string\_of\_typeDecList} returns the type definition in readable string. \texttt{niceInfer\_dec} visualizes type inference procedure which supports our new features.
+		
+		To help generating tests, we updates the interactive executable \texttt{picomlInterp} and make it record and output the history statements and corresponding evaluation answers. The output format is close to test case definition in \texttt{proj\_tests}. Thus, making test cases is basically a record-and-replay relaxing activity. The test module codes are also mostly rewritten to fit for new test scheme without solution or reference file.
+
+\section{Tests}
+	\textit{TODO}
+
+\section{Listing}
+	\subsection{Definition Extension}
+		\begin{lstlisting}
+type typeDec = string * ((string * (monoTy list)) list)
+type dec =
+  ...
+  | TypeStat of typeDec list
+		\end{lstlisting}
+	
+		\begin{lstlisting}
+type exp =
+  ...
+  | ConstructExp of string * (exp list)
+  | DestructExp of string * exp
+  | TestExp of string * exp
+		\end{lstlisting}
+
+	\subsection{Type Declaration Checking}
+		\begin{lstlisting}
+let rec gather_dec_ty_substitution (gamma: type_env) (beta: typeDec_env) dec =
+...
+| TypeStat(tplst) -> (
+  let beta' = List.filter (fun x -> let tp = fst x in List.length (List.filter (fun y -> fst y = tp) tplst) == 0) beta in
+    let existing_tps = List.map (fst) beta' in
+      let all_tps = existing_tps @ (List.map (fst) tplst) @ internal_ty in
+        let existing_conss = List.flatten (List.map (fun x -> List.map (fst) (snd (snd x))) beta') in
+          let all_conss = existing_conss @ (List.flatten (List.map (fun x -> List.map (fst) (snd x)) tplst)) in
+            let rec work (tplst: typeDec list) = (match tplst with
+              ((tp_name, conss): typeDec):: tplsts -> (
+                let cond1 = (List.length (List.filter (fun x -> x = tp_name) all_tps) = 1) and
+                  cond2 = (List.length (List.filter (not) (List.map (fun cons -> (List.length (List.filter (fun x -> x = (fst cons)) all_conss)) = 1) conss)) = 0) and
+                  cond3 = (List.length (List.filter (not) (List.flatten (List.map (fun cons -> List.map (fun tp -> List.length (List.filter (fun x -> x = tp) all_tps) = 1) (gather_comp_types (snd cons))) conss))) = 0)
+                in
+                  if (not cond1) then (print_string "Duplicate type name both in existing defs and this statement."; false)
+                  else (if (not cond2) then (print_string "Duplicate construct name both in existing construct names and this statement."; false)
+                  else (if (not cond3) then (print_string "Every component in every constructs should be find in existing type defs or this statement."; false)
+                  else work tplsts))
+                )
+              | [] -> true
+            ) in
+              match work tplst with
+                true -> Some(Proof([], TypeJudgment ((List.map (fun x -> (fst x, x)) tplst) @ beta')), [])
+                | false -> None
+  )
+ 
+		\end{lstlisting}
+	
+	\subsection{Auxiliary Function Type Checking}
+		\begin{lstlisting}
+let rec gather_exp_ty_substitution (gamma: type_env) (beta: typeDec_env) (exp: exp) (tau: monoTy) =
+  let judgment = ExpJudgment(gamma, exp, tau) in
+  let result =
+    match exp with
+      ...
+      ConstructExp (cons, explst) -> (match (lookup_cons beta cons) with
+        Some (tname, comps) -> (let rec work explst comps proof subst = (match (explst, comps) with
+            (exp:: es, comp:: cs) -> (match (gather_exp_ty_substitution (env_lift_subst subst gamma) beta exp (monoTy_lift_subst subst comp)) with
+                Some (pf, sigma) -> work es cs (pf::proof) (subst_compose sigma subst)
+                | None -> None
+              )
+            | ([], []) -> Some (proof, subst)
+            | _ -> None
+          ) in (match (work explst comps [] []) with
+            Some (pflist, sigma) -> (match unify [(monoTy_lift_subst sigma tau, monoTy_lift_subst sigma (make_userType tname))]
+              with None -> None
+              | Some sigma' -> Some(Proof(pflist, judgment), subst_compose sigma' sigma))
+            | None -> None 
+          ))
+        | None -> None
+        )
+      | TestExp (cons, exp) -> (match (lookup_cons beta cons) with
+        Some (tname, _) -> (match (gather_exp_ty_substitution gamma beta exp (make_userType tname)) with
+          Some (pf, sigma) -> (match unify [(monoTy_lift_subst sigma tau, monoTy_lift_subst sigma bool_ty)] with
+            None -> None
+            | Some sigma' -> Some(Proof([pf], judgment), subst_compose sigma' sigma))
+          | None -> None)
+        | None -> None
+        )
+      | DestructExp (cons, exp) -> (match (lookup_cons beta cons) with
+        Some (tname, comps) -> (match (gather_exp_ty_substitution gamma beta exp (make_userType tname)) with
+          Some (pf, sigma) -> let rec make_comp_type comps = (match comps with
+              (c :: []) -> c
+              | (c :: cs) -> mk_pair_ty c (make_comp_type cs)
+              | [] -> unit_ty
+            ) in (match unify [(monoTy_lift_subst sigma tau, monoTy_lift_subst sigma (make_comp_type comps))]
+              with None -> None
+              | Some sigma' -> Some(Proof([pf], judgment), subst_compose sigma' sigma)
+            )
+          | None -> None)
+        | None -> None
+        )
+		\end{lstlisting}
+	
+	\subsection{Evaluating}
+		\begin{lstlisting}
+let rec eval_exp (exp, m) = (match exp with
+  ...
+  | ConstructExp (cons, explst) -> CustomVal (cons, List.map (fun x -> eval_exp (x, m)) explst)
+  | DestructExp (cons, exp) -> (match eval_exp (exp, m) with
+      CustomVal (cons', vlst) -> 
+		if cons = cons' then 
+          (let rec gen_val vlst = match vlst with
+            [] -> UnitVal
+            | (v:: []) -> v
+            | (v:: vs) -> PairVal (v, gen_val vs) 
+          in gen_val vlst)
+        else raise (Failure ("Wrong destructor used. The constructor for the type is " ^ cons' ^ ", but destructor " ^ cons ^ " used."))
+      | _ -> raise (Failure "Assertion Error: Operands not match.")
+    )
+  | TestExp (cons, exp) -> (match eval_exp (exp, m) with
+      CustomVal (cons', _) -> if cons = cons' then BoolVal true else BoolVal false
+      | _ -> raise (Failure "Assertion Error: Operands not match.")
+    )
+		\end{lstlisting}
+\end{document}

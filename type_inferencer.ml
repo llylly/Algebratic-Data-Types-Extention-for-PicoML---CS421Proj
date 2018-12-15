@@ -208,7 +208,7 @@ let rec gather_exp_ty_substitution (gamma: type_env) (beta: typeDec_env) (exp: e
           | ([], []) -> Some (proof, subst)
           | _ -> None
         ) in (match (work explst comps [] []) with
-          Some (pflist, sigma) -> (match unify [(tau, monoTy_lift_subst sigma (make_userType tname))]
+          Some (pflist, sigma) -> (match unify [(monoTy_lift_subst sigma tau, monoTy_lift_subst sigma (make_userType tname))]
             with None -> None
             | Some sigma' -> Some(Proof(pflist, judgment), subst_compose sigma' sigma))
           | None -> None 
@@ -217,7 +217,7 @@ let rec gather_exp_ty_substitution (gamma: type_env) (beta: typeDec_env) (exp: e
       )
     | TestExp (cons, exp) -> (match (lookup_cons beta cons) with
       Some (tname, _) -> (match (gather_exp_ty_substitution gamma beta exp (make_userType tname)) with
-        Some (pf, sigma) -> (match unify [(tau, monoTy_lift_subst sigma bool_ty)] with
+        Some (pf, sigma) -> (match unify [(monoTy_lift_subst sigma tau, monoTy_lift_subst sigma bool_ty)] with
           None -> None
           | Some sigma' -> Some(Proof([pf], judgment), subst_compose sigma' sigma))
         | None -> None)
@@ -229,7 +229,7 @@ let rec gather_exp_ty_substitution (gamma: type_env) (beta: typeDec_env) (exp: e
             (c :: []) -> c
             | (c :: cs) -> mk_pair_ty c (make_comp_type cs)
             | [] -> unit_ty
-          ) in (match unify [(tau, monoTy_lift_subst sigma (make_comp_type comps))]
+          ) in (match unify [(monoTy_lift_subst sigma tau, monoTy_lift_subst sigma (make_comp_type comps))]
             with None -> None
             | Some sigma' -> Some(Proof([pf], judgment), subst_compose sigma' sigma)
           )
