@@ -108,9 +108,9 @@ let niceInfer_exp gather_exp (gamma:type_env) (beta: typeDec_env) exp =
   result;;
 
 let niceInfer_dec
-    (gather_dec:(type_env -> typeDec_env -> dec -> (proof * type_env * substitution) option))
-    (beta:typeDec_env)
-    (gamma:type_env) dec = 
+    (gather_dec:(type_env -> typeDec_env -> dec -> (proof * substitution) option))
+    (gamma:type_env) 
+    (beta:typeDec_env) dec = 
   let result = 
     match gather_dec gamma beta dec with
      None ->
@@ -119,7 +119,7 @@ let niceInfer_dec
        "in the environment: "^
        string_of_env string_of_polyTy gamma^ "\n");
        raise (Failure ""))
-   | Some (p,d,s) ->
+   | Some (p,s) ->
    (string_of_proof p^
    ("Unifying substitution: "^
     string_of_substitution s^
@@ -201,7 +201,7 @@ let rec gather_exp_ty_substitution (gamma: type_env) (beta: typeDec_env) (exp: e
     match exp with 
     ConstructExp (cons, explst) -> (match (lookup_cons beta cons) with
       Some (tname, comps) -> (let rec work explst comps proof subst = (match (explst, comps) with
-          (exp:: es, comp:: cs) -> (match (gather_exp_ty_substitution (env_lift_subst subst gamma) beta exp comp) with
+          (exp:: es, comp:: cs) -> (print_string (string_of_monoTy comp); match (gather_exp_ty_substitution (env_lift_subst subst gamma) beta exp (monoTy_lift_subst subst comp)) with
               Some (pf, sigma) -> work es cs (pf::proof) (subst_compose sigma subst)
               | None -> None
             )

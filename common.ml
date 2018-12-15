@@ -154,8 +154,12 @@ let rec string_of_exp = function
      (string_of_exc_match (intopt1,exp1)) ^
      (List.fold_left (fun s m -> (s^" | " ^ (string_of_exc_match m))) "" match_list) 
   
- | ConstructExp (s, elst) -> "@" ^ s ^ " (" ^ (List.fold_left (^) "" (List.map (string_of_exp) elst)) ^ ")"
- | DestructExp (s, e) -> "@" ^ s ^ " (" ^ (string_of_exp e) ^ ")"
+ | ConstructExp (s, elst) -> let rec str_of_tup arr = (match arr with
+      (a:: []) -> a
+      | (a :: al) -> a ^ ", " ^ (str_of_tup al)
+      | [] -> "" 
+    ) in s ^ " (" ^ (str_of_tup (List.map (string_of_exp) elst)) ^ ")"
+ | DestructExp (s, e) -> "~" ^ s ^ " (" ^ (string_of_exp e) ^ ")"
  | TestExp (s, e) -> "!" ^ s ^ " (" ^ (string_of_exp e) ^ ")"
 
 and paren_string_of_exp e =
