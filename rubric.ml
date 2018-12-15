@@ -1,223 +1,133 @@
 (*
  * This file will be preprocessed to generate the actual OCaml file.
  *)
+
+(*
+  Project tests for our Algebratic Data Type Extension for PicoML
+  CS 421 Unit Project
+  Linyi Li & Hanyun Xu
+*)
 open Grader
 open Test
+open Common
+open Values
+open Type_inferencer
+open Eval_exp
+
+let parse s = Picomlparse.main Picomllex.token (Lexing.from_string s)
 
 (*
  * use a timeout of 4 seconds
  *)
 
-let mptest weight pair = compare (=) 4 weight pair
-
-
-open Common
-let rubric_version = "1.0"
-let rubric_title = "CS421 Fall 2017 MP7"
-
-(**************************************************************************
- * You can add new test cases by adding new elements to the following lists
- * Format is:
- * TEST<X>ARG(<weight>, <function_name>, <arg1>, <arg2>, ..., <argX>)
- *
- * <X> is the number of argument that the function being tested takes.
- **************************************************************************)
-
-let parse s = Picomlparse.main Picomllex.token (Lexing.from_string s)
-
-(* These lists are for regular problems *)
-
-let eval_exp_tests =
-[
-(* Problem 2 *)
-"eval_exp"^" "^"(ConstExp(IntConst 2), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (ConstExp(IntConst 2), []));
-(* Problem 4 *)
-"eval_exp"^" "^"(VarExp \"x\", [(\"x\", IntVal 2)])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (VarExp "x", [("x", IntVal 2)]));
-"eval_exp"^" "^"(VarExp \"y\", [(\"y\", FloatVal 2.4)])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (VarExp "y", [("y", FloatVal 2.4)]));
-"eval_exp"^" "^"(VarExp \"z\", [(\"z\", StringVal \"hello\")])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (VarExp "z", [("z", StringVal "hello")]));
-
-(* Problem 5 *)
-"eval_exp"^" "^"(MonOpAppExp(IntNegOp, ConstExp (IntConst 2)), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (MonOpAppExp(IntNegOp, ConstExp (IntConst 2)), []));
-
-(* Problem 6 *)
-"eval_exp"^" "^"(BinOpAppExp (IntPlusOp, ConstExp(IntConst(3)), ConstExp(IntConst(4))), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (BinOpAppExp (IntPlusOp, ConstExp(IntConst(3)), ConstExp(IntConst(4))), []));
-(* Problem 7 *)
-"eval_exp"^" "^"(IfExp(ConstExp(BoolConst true), ConstExp(IntConst 1), ConstExp(IntConst 0)), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (IfExp(ConstExp(BoolConst true), ConstExp(IntConst 1), ConstExp(IntConst 0)), []));
-
-(* Problem 8 *)
-"eval_exp"^" "^"(LetInExp(\"y\", ConstExp(IntConst 5), VarExp \"y\"), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (LetInExp("y", ConstExp(IntConst 5), VarExp "y"), []));
-(* Problem 9 *)
-"eval_exp"^" "^"(FunExp(\"x\", VarExp \"x\"), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (FunExp("x", VarExp "x"), []));
-"eval_exp"^" "^"(FunExp(\"x\", BinOpAppExp (IntPlusOp, VarExp \"x\", VarExp \"x\")), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (FunExp("x", BinOpAppExp (IntPlusOp, VarExp "x", VarExp "x")), []));
-
-(* Problem 10 *)
-"eval_exp"^" "^"(AppExp(FunExp(\"x\", VarExp \"x\"), ConstExp(IntConst 7)), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (AppExp(FunExp("x", VarExp "x"), ConstExp(IntConst 7)), []));
-
-"eval_exp"^" "^"(MonOpAppExp (HdOp,BinOpAppExp (ConsOp, ConstExp (IntConst 1), ConstExp NilConst)), [])", mptest 1 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (MonOpAppExp (HdOp,BinOpAppExp (ConsOp, ConstExp (IntConst 1), ConstExp NilConst)), []));
-
-
-(* Problem 11 *)
-"eval_dec"^" "^"(LetRec (\"even\", \"x\", IfExp (BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 0)), ConstExp (BoolConst true), IfExp (BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 1)), ConstExp (BoolConst false), AppExp (VarExp \"even\", BinOpAppExp (IntMinusOp, VarExp \"x\", ConstExp (IntConst 2)))))), [])", mptest 1 (ss_pair1 Solution.eval_dec Eval_exp.eval_dec (LetRec ("even", "x", IfExp (BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 0)), ConstExp (BoolConst true), IfExp (BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 1)), ConstExp (BoolConst false), AppExp (VarExp "even", BinOpAppExp (IntMinusOp, VarExp "x", ConstExp (IntConst 2)))))), []));
 
 
 
 
 
-
-(* Problem 12 *)
-"eval_exp"^" "^"(AppExp (VarExp \"even\", ConstExp (IntConst 3)), [(\"even\", RecVarVal (\"even\", \"x\", IfExp (BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 0)), ConstExp (BoolConst true), IfExp (BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 1)), ConstExp (BoolConst false), AppExp (VarExp \"even\", BinOpAppExp (IntMinusOp, VarExp \"x\", ConstExp (IntConst 2))))), []))])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (AppExp (VarExp "even", ConstExp (IntConst 3)),[("even", RecVarVal ("even", "x", IfExp (BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 0)), ConstExp (BoolConst true), IfExp (BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 1)), ConstExp (BoolConst false), AppExp (VarExp "even", BinOpAppExp (IntMinusOp, VarExp "x", ConstExp (IntConst 2))))), []))]));
-"eval_exp"^" "^"(AppExp (VarExp \"r\", ConstExp (IntConst 3)), [(\"r\", RecVarVal (\"even\", \"x\", IfExp (BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 0)), ConstExp (BoolConst true), IfExp (BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 1)), ConstExp (BoolConst false), AppExp (VarExp \"even\", BinOpAppExp (IntMinusOp, VarExp \"x\", ConstExp (IntConst 2))))), []))])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (AppExp (VarExp "r", ConstExp (IntConst 3)),[("r", RecVarVal ("even", "x", IfExp (BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 0)), ConstExp (BoolConst true), IfExp (BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 1)), ConstExp (BoolConst false), AppExp (VarExp "even", BinOpAppExp (IntMinusOp, VarExp "x", ConstExp (IntConst 2))))), []))]));
-"eval_exp"^" "^"(AppExp (VarExp \"f\", ConstExp (IntConst 3)), [(\"f\", RecVarVal (\"f\", \"x\", BinOpAppExp (IntPlusOp, VarExp \"x\", ConstExp (IntConst 1)), []))])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (AppExp (VarExp "f", ConstExp (IntConst 3)), [("f", RecVarVal ("f", "x", BinOpAppExp (IntPlusOp, VarExp "x", ConstExp (IntConst 1)), []))]));
-
-
-
-"eval_exp"^" "^"(AppExp (VarExp \"g\", ConstExp (IntConst 3)), [(\"f\", IntVal 32); (\"g\", RecVarVal (\"f\", \"x\", BinOpAppExp (IntPlusOp, VarExp \"x\", ConstExp (IntConst 1)), []))])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (AppExp (VarExp "g", ConstExp (IntConst 3)), [("f", IntVal 32); ("g", RecVarVal ("f", "x", BinOpAppExp (IntPlusOp, VarExp "x", ConstExp (IntConst 1)), []))]));
-
-
-
-
-"eval_exp"^" "^"(AppExp (VarExp \"f\", ConstExp (IntConst 3)), [(\"f\", RecVarVal (\"f\", \"x\", IfExp (IfExp (BinOpAppExp (GreaterOp, ConstExp (IntConst 0), VarExp \"x\"), ConstExp (BoolConst true), BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 0))), ConstExp (IntConst 1), AppExp (VarExp \"f\", BinOpAppExp (IntMinusOp, VarExp \"x\", ConstExp (IntConst 1)))), []))])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (AppExp (VarExp "f", ConstExp (IntConst 3)),[("f", RecVarVal ("f", "x", IfExp (IfExp (BinOpAppExp (GreaterOp, ConstExp (IntConst 0), VarExp "x"), ConstExp (BoolConst true), BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 0))), ConstExp (IntConst 1), AppExp (VarExp "f", BinOpAppExp (IntMinusOp, VarExp "x", ConstExp (IntConst 1)))), []))]));
-"eval_exp"^" "^"(AppExp (VarExp \"f\", ConstExp (IntConst 3)), [(\"f\", RecVarVal (\"f\", \"x\", IfExp (IfExp (BinOpAppExp (GreaterOp, ConstExp (IntConst 0), VarExp \"x\"), ConstExp (BoolConst true), BinOpAppExp (EqOp, VarExp \"x\", ConstExp (IntConst 0))), ConstExp (IntConst 1), AppExp (VarExp \"f\", BinOpAppExp (IntMinusOp, VarExp \"x\", ConstExp (IntConst 1)))), [(\"f\", RecVarVal (\"f\", \"x\", BinOpAppExp (IntPlusOp, VarExp \"x\", ConstExp (IntConst 1)), []))])); (\"f\", RecVarVal (\"f\", \"x\", BinOpAppExp (IntPlusOp, VarExp \"x\", ConstExp (IntConst 1)), []))])", mptest 2 (ss_pair1 Solution.eval_exp Eval_exp.eval_exp (AppExp (VarExp "f", ConstExp (IntConst 3)),[("f", RecVarVal ("f", "x", IfExp (IfExp (BinOpAppExp (GreaterOp, ConstExp (IntConst 0), VarExp "x"), ConstExp (BoolConst true), BinOpAppExp (EqOp, VarExp "x", ConstExp (IntConst 0))), ConstExp (IntConst 1), AppExp (VarExp "f", BinOpAppExp (IntMinusOp, VarExp "x", ConstExp (IntConst 1)))), [("f", RecVarVal ("f", "x", BinOpAppExp (IntPlusOp, VarExp "x", ConstExp (IntConst 1)), []))])); ("f", RecVarVal ("f", "x", BinOpAppExp (IntPlusOp, VarExp "x", ConstExp (IntConst 1)), []))]))
-]
-
-(* Declaration test cases should go in this list.
- * The first element of the pair is the weight of the case,
- * and the second is the string to be given to the parser.
- *)
+(*
+  Project tests for our Algebratic Data Type Extension for PicoML
+  CS 421 Unit Project
+  Linyi Li & Hanyun Xu
+*)
 
 let eval_dec_test_cases = [
-(* Problems 1 and 2 *)
-2, "(* Q1  and Q2*) true;;";
-2, "false;;";
-2, "2.4;;";
-2, "\"hi\";;";
-1, "13;;";
+  1, [
+    "type node = EN | N of int * tree and tree = EM | M of node * tree;;"
+    ;"EN;;"
+    ;"(N (1, (M (EN, EM))));;"
+  ], [
+    None
+    ;Some (CustomVal ("EN", []))
+    ;Some (CustomVal ("N", [IntVal 1; CustomVal ("M", [CustomVal ("EN", []); CustomVal ("EM", [])])]))
+  ];
 
-(* Problem 3 *)
-1, "(* Q3 *) let x = 2;;";
-1, " let y = 2.4;;";
-1, " let z = false;;";
+  1, [
+    "type int_tup = NULLINT | ONEINT of int | TWOINT of int * int | TRIINT of int * int * int;;"
+    ;"let a = ONEINT (5);;"
+    ;"let b = TRIINT (10, 5, 7);;"
+    ;"let c = TWOINT (30, 40);;"
+    ;"~TRIINT (b);;"
+    ;"~TRIINT (a);;"
+    ;"~TRIINT (c);;"
+    ;"~TWOINT (c);;"
+  ], [
+    None
+    ;Some (CustomVal ("ONEINT", [IntVal 5]))
+    ;Some (CustomVal ("TRIINT", [IntVal 10; IntVal 5; IntVal 7]))
+    ;Some (CustomVal ("TWOINT", [IntVal 30; IntVal 40]))
+    ;Some (PairVal (IntVal 10, PairVal (IntVal 5, IntVal 7)))
+    ;None
+    ;None
+    ;Some (PairVal (IntVal 30, IntVal 40))
+  ];
 
-(* Problem 4 - tested above *)
-
-(* Problem 5 *)
-2, "(* Q5 *) hd [3;4];;";
-2, "         tl [3;4];;";
-1, "         fst (3, 2);;";
-1, "         snd (3, 2);;";
-1, "         print_string \"hi\";;";
-
-(* Problem 6 *)
-2, "(* Q6 *) (2 * 3) / (4 - 1) ;;";
-3, "         ((3.0 *. 4.0) /. (4.0 -. 1.0)) +. (2.0 ** 3.0);;";
-2, "         ((\"hi \" ^ \"there\", 3::[]) = (\"a\", 4::2::[])) > true;;";
-
-(* Problem 7 *)
-1, "(* Q7 *)  if true then false else true;;";
-1, "          if 3 < 4 then 3 else 4;;";
-1, "          if true then if true then false else true else false;;";
-1, "          if if true then false else true then 3 else 4;;";
-
-(* Problem 8 *)
-1, "(* Q8 *) let z = 12 in z + z;;";
-1, "         let a = 94 in let z = 4 in a;;";
-1, "         let a = 94 in let z = 4 in a + z;;";
-1, "         let z = let z = 4 in z + 1 in z - 3;;";
-1, "         let a = 19 in let a = 23 in a;;";
-(* Problem 9 *)
-1, "(* Q9 *) fun x -> 3;;";
-1, "         fun y -> fun z -> y + z;;";
-1, "         fun x -> fun x -> fun z -> x * x * z;;";
-
-(* Problem 10 *)
-1, "(* Q10 *) (fun f -> f 4) (fun y -> y - 1);;";
-1, "         (fun f -> fun x -> f x) (fun x -> x) 3;;";
-1, "         (fun x -> fun y -> x * y) 3 4;;";
-1, "         (fun f -> fun g -> f(g 3)) (fun x -> x + 2) (fun x -> x * 2);;";
-
-(* Problem 11 *)
-1, "(* Q11 *) let rec f y = 1;;";
-1, "          let rec f x = fun x -> x;;";
-1, "          let rec q a = 3 + 4;;";
-1, "          let rec f x = if x = 0 then 1 else x * f (x - 1);;";
-
-(* Problem 13 *)
-1, "(* Q13 *) let rec f x = if x = 0 then 1 else x * f (x - 1) in f 3;;";
-1, "          let rec f x = x + 1 in f 3;;";
-1, "          let rec f x = x in f 2;;";
-1, "          let rec f y = let rec g x = 2 in g in f;;";
-1, "          let rec p x = fun y -> if x = 0 then 1 else y * p (x - 1) y in p 3 2;; ";
-1, "          let rec f x = if x <= 0 then 0 else f(x - 1) in f 17;;";
-1, "					let rec g f = f g in (fun f -> f (fun x -> x));;";
-1, "					let rec f x = if x <= 0 then 0 else 2 * (f (x - 1)) in f 3;;"
+  1, [" type dlist = ONE of ( int list ) | TWO of ( ( int list ) * ( int list ) ) ;;";
+  " let a = ONE ( [ 1 ; 2 ; 3 ] ) ;;";
+  " let b = TWO ( ( [ 1 ; 2 ; 3 ] , [ 3 ; 2 ; 1 ] ) ) ;;";
+  " ~ONE ( a ) ;;";
+  " ( hd ( fst ( ~TWO ( b ) ) ) ) = ( hd ( tl ( tl ( snd ( ~TWO ( b ) ) ) ) ) ) ;;"],
+  [None;
+  Some (CustomVal ("ONE", [ListVal [IntVal 1; IntVal 2; IntVal 3]]));
+  Some (CustomVal ("TWO", [PairVal (ListVal [IntVal 1; IntVal 2; IntVal 3], ListVal [IntVal 3; IntVal 2; IntVal 1])]));
+  Some (ListVal [IntVal 1; IntVal 2; IntVal 3]);
+  Some (BoolVal true)]
 ]
 
+let proj_rubric = let rec dec_test (slist, rlist) (gamma: type_env) (beta: typeDec_env) (mem: memory) =
+    match (slist, rlist) with
+      (s:: ss, r:: rs) -> (try
+        let dec = parse s in (
+          match infer_dec gather_dec_ty_substitution gamma beta dec with
+            None -> (
+              print_string "\ndoes not type check\n";
+              (match r with None -> dec_test (ss, rs) gamma beta mem | Some _ -> false))
+            | Some (Proof(hyps,judgement)) -> (match judgement with
+                TypeJudgment (betap) -> (
+                  (* print_string (string_of_env string_of_typeDec betap); *)
+                  (* print_string "\n"; *)
+                  dec_test (ss, rs) gamma betap mem
+                )
+                | _ -> (match eval_dec (dec, mem) with
+                  ((None, value), m) -> (match r with
+                    Some r -> if value = r then dec_test (ss, rs) gamma beta m else false
+                    | None -> false
+                    )
+                  | ((Some s,value), m) -> (match judgement with
+                    DecJudgment (_, _, delta) -> (match r with
+                      Some r -> if value = r then dec_test (ss, rs) (sum_env delta gamma) beta m else false
+                      | None -> false)
+                    | _ -> raise (Failure "This shouldn't be possible"))
+                )
+              )
+          )
+        with
+          Failure s -> (match r with Some _ -> false | None -> dec_test (ss, rs) gamma beta mem)
+          | Parsing.Parse_error -> (match r with Some _ -> false | None -> dec_test (ss, rs) gamma beta mem)
+        )
+      | ([], []) -> true
+      | _ -> raise (Failure "Illegal test case.")
+  in
+    let test_each (w, s, r) = (let rec print_case s r = (match (s, r) with
+          (si:: ss, ri:: rs) -> print_string (si ^ "\n  Result: "); (match ri with Some ri -> print_value ri | None -> print_string "Illegal exp"); print_newline (); print_case ss rs
+          | ([], []) -> ()
+          | _ -> raise (Failure "Illegal test case.")
+        ) in
+      let pass = dec_test (s, r) [] [] [] in
+        print_string ("[" ^ (string_of_int (if pass then w else 0)) ^ "/" ^ (string_of_int w) ^ "]\n");
+        print_case s r;
+        print_newline ();
+        if pass then w else 0
+      )
+    in
+    let score =
+      List.fold_left (+) 0 (List.map (fun x -> test_each x) eval_dec_test_cases)
+    and full_score =
+      List.fold_left (+) 0 (List.map (fun (w, s, r) -> w) eval_dec_test_cases)
+    in
+      print_string ("Final score: [" ^ (string_of_int score) ^ "/" ^ (string_of_int full_score) ^ "]\n")
 
-let rubric = eval_exp_tests @
-             (List.map
-             (fun (w,s) -> "eval_dec"^" "^"(parse s, [])", mptest w (ss_pair1 Solution.eval_dec Eval_exp.eval_dec (parse s, [])))
-             eval_dec_test_cases)
 
 
-(* This list is for extra credit / graduate student problems *)
-(*
-let grad_test_cases = [
-(* Problem 14 *)
-1, "(* Q14 *) let f = fun x -> raise 4 in f 17.0 15;;";
-1, "(* Q15 *) raise 1;;";
-1, "(* Q16 *) 4/0;;";
-1, "(* Q17 *) try 4 / 0 with 0 -> 9999;;";
-]
-*)
-let eval_dec_test_cases2 = [
-(* Problem 14 *)
-1, "(* Q14 *) (raise 4) 17.0;;";
-2, "          if true then raise 2 else raise 3;;";
-2, "          if (raise 2) then 3 else 4;;";
-2, "          hd (raise 2);;";
-3, "          (raise 3) (raise 4);;";
-2, "					if false && (raise 2) then raise 1 else raise 1;;";
-3, "					let x = raise 3 in 4;;";
-2, "					let y = 0 in raise 2;;";
-3, "					(fun x -> raise 0) 1;;";
 
-(* Problem 15 *)
-1, "(* Q15 *) raise 1;;";
-1, "          raise 2;;";
-3, "          raise (raise 4);;";
-
-(* Problem 16 *)
-1, "(* Q16 *) 4/0;;";
-1, "          4.0 /. 0.0;;";
-1, "          hd [];;";
-1, "          tl [];;";
-
-(* Problem 17 *)
-2, "(* Q17 *) try 4 / 0 with 0 -> 9999;;";
-2, "          try (raise 2) with 2 -> 9999;;";
-2, "          try 4 with 2 -> 9999 | 3 -> 9998;;";
-2, "          try raise (raise 2) with 3 -> 8888 | 2 -> 9999;;";
-2, "          try if (raise 2) then false else true with 2 -> 9999;;"
-]
-
-let smart_eval_dec_student (s, t) =
-        try (Eval_exp.eval_dec (s, t)) with
-              Failure u -> ((None, Exn 0), t)
-               | Division_by_zero -> ((None, Exn 0), t)
-
-let smart_eval_dec_solution (s, t) =
-        try (Solution.eval_dec (s, t)) with
-              Failure u -> ((None, Exn 0), t)
-               | Division_by_zero -> ((None, Exn 0), t)
-
-let grad_rubric =
- (* (List.map
-             (fun (w,s) -> "smart_eval_dec_solution"^" "^"(parse s, [])", mptest w (ss_pair1 smart_eval_dec_solution smart_eval_dec_student (parse s, [])))
-             eval_dec_test_cases) @*)
-             (List.map
-             (fun (w,s) -> "eval_dec"^" "^"(parse s, [])", mptest w (ss_pair1 Solution.eval_dec Eval_exp.eval_dec (parse s, [])))
-             eval_dec_test_cases2)
-
-let extra_rubric = grad_rubric
-
-let _ = Main.main rubric extra_rubric rubric_title rubric_version
+let _ = proj_rubric

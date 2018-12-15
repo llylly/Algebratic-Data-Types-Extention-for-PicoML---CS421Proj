@@ -1,0 +1,48 @@
+(*
+  Project tests for our Algebratic Data Type Extension for PicoML
+  CS 421 Unit Project
+  Linyi Li & Hanyun Xu
+*)
+
+let eval_dec_test_cases = [
+  1, [
+    "type node = EN | N of int * tree and tree = EM | M of node * tree;;"
+    ;"EN;;"
+    ;"(N (1, (M (EN, EM))));;"
+  ], [
+    None
+    ;Some (CustomVal ("EN", []))
+    ;Some (CustomVal ("N", [IntVal 1; CustomVal ("M", [CustomVal ("EN", []); CustomVal ("EM", [])])]))
+  ];
+
+  1, [
+    "type int_tup = NULLINT | ONEINT of int | TWOINT of int * int | TRIINT of int * int * int;;"
+    ;"let a = ONEINT (5);;"
+    ;"let b = TRIINT (10, 5, 7);;"
+    ;"let c = TWOINT (30, 40);;"
+    ;"~TRIINT (b);;"
+    ;"~TRIINT (a);;"
+    ;"~TRIINT (c);;"
+    ;"~TWOINT (c);;"
+  ], [
+    None
+    ;Some (CustomVal ("ONEINT", [IntVal 5]))
+    ;Some (CustomVal ("TRIINT", [IntVal 10; IntVal 5; IntVal 7]))
+    ;Some (CustomVal ("TWOINT", [IntVal 30; IntVal 40]))
+    ;Some (PairVal (IntVal 10, PairVal (IntVal 5, IntVal 7)))
+    ;None
+    ;None
+    ;Some (PairVal (IntVal 30, IntVal 40))
+  ];
+
+  1, [" type dlist = ONE of ( int list ) | TWO of ( ( int list ) * ( int list ) ) ;;";
+  " let a = ONE ( [ 1 ; 2 ; 3 ] ) ;;";
+  " let b = TWO ( ( [ 1 ; 2 ; 3 ] , [ 3 ; 2 ; 1 ] ) ) ;;";
+  " ~ONE ( a ) ;;";
+  " ( hd ( fst ( ~TWO ( b ) ) ) ) = ( hd ( tl ( tl ( snd ( ~TWO ( b ) ) ) ) ) ) ;;"], 
+  [None;
+  Some (CustomVal ("ONE", [ListVal [IntVal 1; IntVal 2; IntVal 3]]));
+  Some (CustomVal ("TWO", [PairVal (ListVal [IntVal 1; IntVal 2; IntVal 3], ListVal [IntVal 3; IntVal 2; IntVal 1])]));
+  Some (ListVal [IntVal 1; IntVal 2; IntVal 3]);
+  Some (BoolVal true)]
+]

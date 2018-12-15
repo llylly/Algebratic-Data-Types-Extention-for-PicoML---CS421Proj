@@ -64,7 +64,66 @@ type exp =  (* Exceptions will be added in later MPs *)
    | DestructExp of string * exp
    | TestExp of string * exp
 
-type typeDec = string * ((string * (string list)) list)
+(* Util functions *)
+let rec drop y = function
+   []    -> []
+ | x::xs -> if x=y then drop y xs else x::drop y xs
+
+let rec delete_duplicates = function
+   []    -> []
+ | x::xs -> x::delete_duplicates (drop x xs)
+
+(*type system*)
+type typeVar = int
+type monoTy = TyVar of typeVar | TyConst of (string * monoTy list)
+type typeDec = string * ((string * (monoTy list)) list)
+
+let rec expand n (list,len) =
+    let q = n / 26 in
+        if q = 0 then (n :: list, len + 1)
+        else expand q (((n mod 26)::list), len + 1);;
+
+let string_of_typeVar n = 
+   let (num_list,len) =
+       match (expand n ([],0))
+       with ([],l) -> ([],l) (* can't actually happen *)
+          | ([s],l) -> ([s],l)
+          | (x::xs,l) -> ((x - 1) :: xs, l)
+   in
+   let s = (Bytes.create len)
+   in
+   let _ =
+    List.fold_left
+    (fun n c -> (Bytes.set s n c; n + 1))
+    0
+    (List.map (fun x -> Char.chr(x + 97)) num_list)  (* Char.code 'a' = 97 *)
+   in "'"^(Bytes.to_string s);;
+
+let rec string_of_monoTy t =
+  let rec string_of_tylist = function
+     []     -> ""
+   | t'::[] -> string_of_monoTy t'
+   | t'::ts -> string_of_monoTy t'^ ","^ string_of_tylist ts
+  in
+  let string_of_subty s =
+  match s with 
+     TyConst ("*", _) | TyConst ("->", _) -> ("("^ string_of_monoTy s^ ")")
+   | _ ->  string_of_monoTy s
+  in 
+    match t with
+       TyVar n         -> (string_of_typeVar n)
+     |TyConst (name, []) -> name
+     |TyConst (name, [ty]) -> (string_of_subty ty^ " "^ name)
+     |TyConst ("*", [ty1; ty2]) -> (string_of_subty ty1^ " * "^ string_of_monoTy ty2)
+     |TyConst ("->", [ty1; ty2]) -> (string_of_subty ty1^ " -> "^ string_of_monoTy ty2)
+     |TyConst (name, tys) -> ("("^ string_of_tylist tys^ ") "^ name)
+
+let rec accummulate_freeVarsMonoTy fvs ty =
+    match ty
+    with TyVar n -> n::fvs
+       | TyConst (c, tyl) -> List.fold_left accummulate_freeVarsMonoTy fvs tyl
+
+let freeVarsMonoTy ty = delete_duplicates (accummulate_freeVarsMonoTy [] ty)
 
 type dec =
      Anon of exp
@@ -115,8 +174,8 @@ and string_of_exc_match (int_opt, e) =
 
 let string_of_typeDec (dec: typeDec) = match dec with
   (tname, conss) -> (let rec string_of_comps comps = (match comps with
-      (x :: []) -> x
-      | (x :: xs) -> x ^ " * " ^ (string_of_comps xs)
+      (x :: []) -> (string_of_monoTy x)
+      | (x :: xs) -> (string_of_monoTy x) ^ " * " ^ (string_of_comps xs)
       | [] -> ""
     ) in 
       let rec string_of_conss conss = (match conss with
@@ -143,68 +202,6 @@ let string_of_dec = function
 
 let print_exp exp = print_string (string_of_exp exp) 
 let print_dec dec = print_string (string_of_dec dec)
-
-(* Util functions *)
-let rec drop y = function
-   []    -> []
- | x::xs -> if x=y then drop y xs else x::drop y xs
-
-let rec delete_duplicates = function
-   []    -> []
- | x::xs -> x::delete_duplicates (drop x xs)
-
-(*type system*)
-
-type typeVar = int
-
-let rec expand n (list,len) =
-    let q = n / 26 in
-        if q = 0 then (n :: list, len + 1)
-        else expand q (((n mod 26)::list), len + 1);;
-
-let string_of_typeVar n = 
-   let (num_list,len) =
-       match (expand n ([],0))
-       with ([],l) -> ([],l) (* can't actually happen *)
-          | ([s],l) -> ([s],l)
-          | (x::xs,l) -> ((x - 1) :: xs, l)
-   in
-   let s = (Bytes.create len)
-   in
-   let _ =
-    List.fold_left
-    (fun n c -> (Bytes.set s n c; n + 1))
-    0
-    (List.map (fun x -> Char.chr(x + 97)) num_list)  (* Char.code 'a' = 97 *)
-   in "'"^(Bytes.to_string s);;
-
-type monoTy = TyVar of typeVar | TyConst of (string * monoTy list)
-
-let rec string_of_monoTy t =
-  let rec string_of_tylist = function
-     []     -> ""
-   | t'::[] -> string_of_monoTy t'
-   | t'::ts -> string_of_monoTy t'^ ","^ string_of_tylist ts
-  in
-  let string_of_subty s =
-  match s with 
-     TyConst ("*", _) | TyConst ("->", _) -> ("("^ string_of_monoTy s^ ")")
-   | _ ->  string_of_monoTy s
-  in 
-    match t with
-       TyVar n         -> (string_of_typeVar n)
-     |TyConst (name, []) -> name
-     |TyConst (name, [ty]) -> (string_of_subty ty^ " "^ name)
-     |TyConst ("*", [ty1; ty2]) -> (string_of_subty ty1^ " * "^ string_of_monoTy ty2)
-     |TyConst ("->", [ty1; ty2]) -> (string_of_subty ty1^ " -> "^ string_of_monoTy ty2)
-     |TyConst (name, tys) -> ("("^ string_of_tylist tys^ ") "^ name)
-
-let rec accummulate_freeVarsMonoTy fvs ty =
-    match ty
-    with TyVar n -> n::fvs
-       | TyConst (c, tyl) -> List.fold_left accummulate_freeVarsMonoTy fvs tyl
-
-let freeVarsMonoTy ty = delete_duplicates (accummulate_freeVarsMonoTy [] ty)
 
 (*fresh type variable*)
 let (fresh, reset) =
@@ -244,7 +241,7 @@ let string_op_ty =
   
 (* type extension *)
 let make_userType s = TyConst (s, [])
-let internal_ty = ["bool"; "int"; "float"; "string"; "unit"]
+let internal_ty = ["bool"; "int"; "float"; "string"; "unit"; "*"; "->"; "list"]
 let comp_ty_signature s = match s with
   "bool" -> bool_ty
   | "int" -> int_ty

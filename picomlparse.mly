@@ -13,13 +13,13 @@
 /* Define the tokens of the language: */
 %token <int> INT
 %token <float> FLOAT
-%token <string> STRING IDENT TIDENT CONSTRUCT TEST DESTRUCT
+%token <string> STRING IDENT CONSTRUCT TEST DESTRUCT
 %token TRUE FALSE NEG PLUS MINUS TIMES DIV DPLUS DMINUS DTIMES DDIV MOD EXP CARAT
        LT GT LEQ GEQ EQUALS NEQ PIPE ARROW SEMI DSEMI DCOLON AT NIL
        LET REC AND IN IF THEN ELSE FUN MOD RAISE TRY WITH NOT LOGICALAND
        LOGICALOR LBRAC RBRAC LPAREN RPAREN COMMA UNDERSCORE UNIT
        HEAD TAIL PRINT FST SND EOF
-       TYPE OF
+       TYPE OF LIST
 
 /* Define the "goal" nonterminal of the grammar: */
 %start main
@@ -38,14 +38,33 @@ type_exp:
   | IDENT EQUALS type_constructor              { ($1, $3):: [] }
 
 type_constructor:
-    TIDENT OF type_comp PIPE type_constructor { ($1, $3):: $5 }
-  | TIDENT OF type_comp                       { ($1, $3):: [] } 
-  | TIDENT PIPE type_constructor               { ($1, []):: $3 }
-  | TIDENT                                    { ($1, []):: [] }
+    CONSTRUCT OF type_comp_sequence PIPE type_constructor { ($1, $3):: $5 }
+  | CONSTRUCT OF type_comp_sequence                       { ($1, $3):: [] } 
+  | CONSTRUCT PIPE type_constructor               { ($1, []):: $3 }
+  | CONSTRUCT                                    { ($1, []):: [] }
+
+type_comp_sequence:
+    type_comp                 { $1:: [] }
+  | type_comp TIMES type_comp_sequence { $1:: $3 }
 
 type_comp:
-    IDENT                 { $1:: [] }
-  | IDENT TIMES type_comp { $1:: $3 }
+    IDENT { (comp_ty_signature $1) }
+  | LPAREN no_pair_type_comp RPAREN { $2 }
+  | type_comp LIST { (mk_list_ty ($1)) }
+  | LPAREN type_comp TIMES type_comp RPAREN { (mk_pair_ty ($2) ($4)) }
+  | no_fun_type_comp ARROW type_comp { (mk_fun_ty ($1) ($3)) }
+
+no_pair_type_comp:
+    IDENT { (comp_ty_signature $1) }
+  | LPAREN no_pair_type_comp RPAREN { $2 }
+  | type_comp LIST { (mk_list_ty ($1)) }
+  | no_fun_type_comp ARROW type_comp { (mk_fun_ty ($1) ($3)) }
+
+no_fun_type_comp:
+    IDENT { (comp_ty_signature $1) }
+  | LPAREN no_pair_type_comp RPAREN { $2 }
+  | type_comp LIST { (mk_list_ty ($1)) }
+  | LPAREN type_comp TIMES type_comp RPAREN { (mk_pair_ty ($2) ($4)) }
 
 expression:
    op_exp				{ $1 }
@@ -241,7 +260,7 @@ pure_monop_raise:
   | RAISE pure_app_raise_exp  { RaiseExp($2) }
 
 pure_app_exp:
-    atomic_expression			{ $1 }
+    no_construct_test_atomic_expression			{ $1 }
   | pure_app_exp atomic_expression 	{ AppExp($1,$2) }
 
 atomic_expression:
@@ -250,8 +269,18 @@ atomic_expression:
   | list_expression		{ $1 }
   | paren_expression            { $1 }
   | monop atomic_expression		{ MonOpAppExp ($1,$2) }
+
   | construct_expression { $1 }
   | TEST LPAREN expression RPAREN { TestExp ($1, $3) }
+  | DESTRUCT LPAREN expression RPAREN { DestructExp ($1, $3) }
+
+no_construct_test_atomic_expression:
+    constant_expression         { ConstExp $1 }
+  | IDENT			{ VarExp $1 }
+  | list_expression		{ $1 }
+  | paren_expression            { $1 }
+  | monop atomic_expression		{ MonOpAppExp ($1,$2) }
+
   | DESTRUCT LPAREN expression RPAREN { DestructExp ($1, $3) }
 
 construct_expression:

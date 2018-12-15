@@ -79,6 +79,8 @@ rule token = parse
   | "type"  { TYPE }
   | "of"    { OF }
 
+  | "list"  { LIST }
+
   | numeric+ as s { INT (int_of_string s) }
   | ("0x"(hexadec)+) as s { INT (int_of_string s) }
   | ((numeric+)'.'(numeric*)('e'(numeric)+)?) as s       { FLOAT (float_of_string s) }
@@ -90,9 +92,8 @@ rule token = parse
 
   | (lower_case (id_char*)) as s     { IDENT s }
 
-  | (upper_case (id_char*)) as s     { TIDENT s }
-  | "#"((upper_case (id_char*)) as s) { CONSTRUCT s }
-  | "@"((upper_case (id_char*)) as s) { DESTRUCT s }
+  | ((upper_case (id_char*)) as s)    { CONSTRUCT s }
+  | "~"((upper_case (id_char*)) as s) { DESTRUCT s }
   | "!"((upper_case (id_char*)) as s) { TEST s }
 
   | open_comment       { comment 1 lexbuf }

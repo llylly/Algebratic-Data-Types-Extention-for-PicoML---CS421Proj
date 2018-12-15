@@ -201,7 +201,7 @@ let rec gather_exp_ty_substitution (gamma: type_env) (beta: typeDec_env) (exp: e
     match exp with 
     ConstructExp (cons, explst) -> (match (lookup_cons beta cons) with
       Some (tname, comps) -> (let rec work explst comps proof subst = (match (explst, comps) with
-          (exp:: es, comp:: cs) -> (match (gather_exp_ty_substitution (env_lift_subst subst gamma) beta exp (comp_ty_signature comp)) with
+          (exp:: es, comp:: cs) -> (match (gather_exp_ty_substitution (env_lift_subst subst gamma) beta exp comp) with
               Some (pf, sigma) -> work es cs (pf::proof) (subst_compose sigma subst)
               | None -> None
             )
@@ -226,8 +226,8 @@ let rec gather_exp_ty_substitution (gamma: type_env) (beta: typeDec_env) (exp: e
     | DestructExp (cons, exp) -> (match (lookup_cons beta cons) with
       Some (tname, comps) -> (match (gather_exp_ty_substitution gamma beta exp (make_userType tname)) with
         Some (pf, sigma) -> let rec make_comp_type comps = (match comps with
-            (c :: []) -> comp_ty_signature c
-            | (c :: cs) -> mk_pair_ty (comp_ty_signature c) (make_comp_type cs)
+            (c :: []) -> c
+            | (c :: cs) -> mk_pair_ty c (make_comp_type cs)
             | [] -> unit_ty
           ) in (match unify [(tau, monoTy_lift_subst sigma (make_comp_type comps))]
             with None -> None
@@ -384,6 +384,13 @@ in (
 *)
     result)
 
+let rec gather_comp_types (comps: monoTy list) = match comps with
+  (c:: cs) -> (match c with
+      TyVar i -> []
+      | TyConst (cons, clst) -> cons:: (gather_comp_types clst)
+    ) @ gather_comp_types cs
+  | [] -> []
+
 let rec gather_dec_ty_substitution (gamma: type_env) (beta: typeDec_env) dec =
     match dec with 
       | Anon e ->
@@ -420,7 +427,7 @@ let rec gather_dec_ty_substitution (gamma: type_env) (beta: typeDec_env) dec =
                       ((tp_name, conss): typeDec):: tplsts -> (
                         let cond1 = (List.length (List.filter (fun x -> x = tp_name) all_tps) = 1) and
                           cond2 = (List.length (List.filter (not) (List.map (fun cons -> (List.length (List.filter (fun x -> x = (fst cons)) all_conss)) = 1) conss)) = 0) and
-                          cond3 = (List.length (List.filter (not) (List.flatten (List.map (fun cons -> List.map (fun tp -> List.length (List.filter (fun x -> x = tp) all_tps) = 1) (snd cons)) conss))) = 0)
+                          cond3 = (List.length (List.filter (not) (List.flatten (List.map (fun cons -> List.map (fun tp -> List.length (List.filter (fun x -> x = tp) all_tps) = 1) (gather_comp_types (snd cons))) conss))) = 0)
                         in
                           if (not cond1) then (print_string "Duplicate type name both in existing defs and this statement."; false)
                           else (if (not cond2) then (print_string "Duplicate construct name both in existing construct names and this statement."; false)
@@ -433,4 +440,5 @@ let rec gather_dec_ty_substitution (gamma: type_env) (beta: typeDec_env) dec =
                         true -> Some(Proof([], TypeJudgment ((List.map (fun x -> (fst x, x)) tplst) @ beta')), [])
                         | false -> None
           )
+
 

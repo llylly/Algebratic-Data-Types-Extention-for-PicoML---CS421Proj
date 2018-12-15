@@ -1,0 +1,29 @@
+type node = EN | N of int * tree and tree = EM | M of node * tree;;
+
+EN;;
+
+(N (1, (M (EN, EM))));;
+
+type int_tup = NULLINT | ONEINT of int | TWOINT of int * int | TRIINT of int * int * int;;
+
+let a = ONEINT (5);;
+let b = TRIINT (10, 5, 7);;
+let c = TWOINT (30, 40);;
+
+~TRIINT (b);;
+
+let t1 = 5;;
+let t2 = 8;;
+let bb = TRIINT (t1, t2, t1 + t2);;
+
+~TRIINT (bb);;
+
+=====
+
+type dlist = ONE of (int list) | TWO of ((int list) * (int list));;
+
+let a = ONE ([1;2;3]);;
+let b = TWO (([1;2;3], [3;2;1]));;
+
+~ONE (a);;
+(hd (fst (~TWO (b)))) = (hd (tl (tl (snd (~TWO (b))))));;

@@ -66,7 +66,6 @@ let main rubric extra_rubric rubric_title rubric_version =
 		   let output_file = output_file () in
 		   let rubric      = make_rubric rubric in
 		   let extra_rubric = make_rubric extra_rubric in
-		   
 		   if !usage_flag then
 		   	   print_usage ()
 		   else if !version_flag then

@@ -1,73 +1,70 @@
-Welcome to the CS421 grading program. 
+CS421 Unit Project
+Algebratic Data Types for PicoML
+Linyi Li & Hanyun Xu
 
-The files you need to edit in this bundle are:
-- mpX-skeleton.ml (first rename to mpX.ml, then modify)
-- tests (add new test cases)
-No other file should be edited. You will only submit mpX.ml.
+(Extended from MP4) 
 
-To run the grading program:
+Semantics:
 
-(In these items, mpX refers to mp1, mp2, mp3, etc)
+    type (lowercase_type_name0) = (Uppercase_constructor_name0) [of (component_type00 * component_type01 * ...)]
+        | (Uppercase_constructor_name1) [of (component_type10 * component_type11 * ...)]
+    and (lowercase_type_name1) = (Uppercase_constructor_name0) [of (component_type00 * component_type01 * ...)]
+        | (Uppercase_constructor_name1) [of (component_type10 * component_type11 * ...)]
+    and ...
 
-0.  IMPORTANT:  Make sure your solution defines every function we ask you
-    to define.  For example, suppose we ask you to define the function
-	
-        splat : 'a list -> 'a list list
-		
-    but for whatever reason, you decide you don't want to write the 
-    splat function.  Then please define the splat function as 
-    follows:
-	
-        let splat lst = raise (Failure(""))
-		
-    If you forget to define a function, the grading program will not 
-    compile; you won't receive any credit if the grading program does not 
-    compile. 
+    Example: type intTup = Null | One of int | Two of int * int | Tri of int * int * int;;
 
-    You can use mpX-skeleton.ml file for your convenience. This file
-    includes definitions for all the functions, and is compilable.
-
-    IT IS STRONGLY RECOMMENDED THAT YOU START WORKING FROM THE SKELETON FILE.
-
-1.  Your solution should be called mpX.ml  You may rename your file with
-	
-        mv mp1-skeleton.ml mpX.ml
-
-    WARNING: Makefile copies your mpX.ml as student.ml, and then compiles it. 
-    Do not have any important file named student.ml, or else it will be 
-    overwritten and you will lose it.
-		
-2.  Your file has to reside in this directory.
-
-3.  Execute
-	
-        make
-		
-    to build the grader.  
+    Construct function: 
+        Constructor_name 
+            # for empty constructor
+        Constructor_name (comp1, comp2, ...)
+            # for non-empty constructor
+        
+        Example:
+            let a = One (5);;
+            let b = Tri (10, 5, 7);;
+            let c = Two (30, 40);;
+            let d = Null;;
     
-    If the grader does not build, make sure you have your solution named 
-    mpX.ml.
-	
-    Secondly, the grading program won't build if your solution's functions
-    do not have the correct types, or if a function is not defined (see #0).
+    Tester function:
+        !Constructor_name (exp)
+            # Test whether the expression is constructed from this constructor, returns bool
+        
+        Example:
+            !One (a);;
+                > true
+            !Tri (b);;
+                > true
+            !Two (c);;
+                > true
+            !Null (d);;
+                > true
+    
+    Destructor function:
+        ~Constructor_name (exp)
+            # Decompose the expression to its components
+            # If it's the empty constructor, return Unit (); if it's from single component, return that component;
+            # Otherwise, returns (comp1, (comp2, (... (... (comp_n-1, comp_n)))))
+        
+        Example:
+            ~One (a);;
+                > 5
+            ~Tri (b);;
+                > (10, (5, 7))
+            ~Two (c);;
+                > (30, 40)
+            ~Null (d);;
+                > ()
+            ~Null (a);;
+                > (Throw Exception)
 
-4.  Run
-		
-        ./grader
-		
-    to see how well your solution does.
+Executions:
+1. ./make: build the executables
+2. Exectuables are:
+    ./picomlInterp: Interactive console to test our extension, along with existing PicoML expression evaluater
+    ./grader: Our reimplementation of automatic tester
+    ./genTest: Extended interactive console, which outputs all input expression and evaluate results each step, for test case recording.
+3. "proj_tests" are test cases file, which is extendable.
 
-5.  If you make changes to your solution, be sure to re-run make (step #3).
-    If you forget to re-run gmake, your changes won't have any effect on the
-    grader program. Do not forget that your solution will be graded using 
-    many more test cases than provided to you. You are encouraged to test your
-    solution against more cases.
-
-7.  The rubric provided is not extensive. You should add many more test cases 
-    to increase your confidence that your implementation is correct. The grading
-    rubric will include many more tests than the one provided to you.
-
-    IMPORTANT: Add new test cases to the "tests" file to increase your confidence
-    about your implementation.
 
 
